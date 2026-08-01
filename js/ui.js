@@ -184,15 +184,27 @@ export function modal(cfg) {
    put your own on the tape. Validation is live, and the ticker chip
    previews exactly how it will look on the board.
    ═══════════════════════════════════════════════════════════════ */
-export function namingSheet({ company, taken, validateName, validateTicker, chipStyle }) {
+export function namingSheet(cfg) {
+  const {
+    taken, validateName, validateTicker, chipStyle,
+    kicker = 'Admitted to listing',
+    title = 'Name it for the tape',
+    confirm: confirmLabel = 'List it',
+    dismissLabel = 'Keep it as filed',
+    suggestTicker,
+  } = cfg;
+  const company = cfg.company ?? { name: cfg.name, ticker: cfg.ticker };
+  const bodyHtml = cfg.body ?? (
+    `It filed as <em>${company.name}</em>. You are the exchange — you decide what the world `
+    + `calls it. Keep the filing, or make it yours.`);
   return new Promise(async (resolve) => {
     modalOpen = true;
     const root = document.getElementById('modal-root');
     const scrim = el('div', { class: 'modal-scrim' });
     const card = el('div', { class: 'modal-card naming' });
 
-    let name = company.name;
-    let ticker = company.ticker;
+    let name = company.name || '';
+    let ticker = company.ticker || (suggestTicker ? suggestTicker(name) : '');
 
     const chip = el('div', { class: 'name-chip', text: ticker, style: chipStyle(ticker) + ';' });
     const nameIn = el('input', {
@@ -205,7 +217,7 @@ export function namingSheet({ company, taken, validateName, validateTicker, chip
     });
     const err = el('div', { class: 'name-error' });
     const confirm = el('button', { class: 'btn btn-primary btn-wide' },
-      el('span', { class: 'btn-label', text: 'List it' }));
+      el('span', { class: 'btn-label', text: confirmLabel }));
 
     function revalidate() {
       const n = validateName(nameIn.value);
@@ -230,11 +242,9 @@ export function namingSheet({ company, taken, validateName, validateTicker, chip
     });
 
     card.append(
-      el('div', { class: 'modal-kicker good', text: 'Admitted to listing' }),
-      el('div', { class: 'modal-title', text: 'Name it for the tape' }),
-      el('div', { class: 'modal-body', html:
-        `It filed as <em>${company.name}</em>. You are the exchange — you decide what the world `
-        + `calls it. Keep the filing, or make it yours.` }),
+      el('div', { class: 'modal-kicker good', text: kicker }),
+      el('div', { class: 'modal-title', text: title }),
+      el('div', { class: 'modal-body', html: bodyHtml }),
       el('div', { class: 'naming-row' }, chip,
         el('div', { class: 'naming-fields' },
           el('label', { class: 'mini-label', text: 'COMPANY' }), nameIn,
@@ -242,7 +252,7 @@ export function namingSheet({ company, taken, validateName, validateTicker, chip
       err,
       el('div', { class: 'modal-actions' }, confirm,
         el('button', { class: 'btn btn-ghost', onClick: () => { sfx.tap(); done(null); } },
-          el('span', { class: 'btn-label', text: 'Keep it as filed' }))),
+          el('span', { class: 'btn-label', text: dismissLabel }))),
     );
 
     confirm.addEventListener('click', () => {

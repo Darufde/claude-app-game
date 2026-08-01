@@ -55,6 +55,9 @@ function makeCandle(open, close, volatility, r) {
 }
 import { generateApplicant } from './company.js';
 import { rollEvents } from './events.js';
+import { stepFactors, factorReturn, drawBetas, initFactors } from './market.js';
+import { stepFunds, collectFundFees, totalAum, screenFor } from './funds.js';
+import { runAllocation, applyFlowImpact, initInvestors } from './investors.js';
 
 /* ═══ queue ═══════════════════════════════════════════════════ */
 export function refillQueue(s, r) {
@@ -87,7 +90,10 @@ export function acceptApplicant(s, co, r) {
     listedDay: s.day,
     status: 'live',
     _q: co._q, _f: co._f, _vol: co._vol, _hype: co._hype, _liq: co._liq,
+    niche: co.niche,
+    ...drawBetas(r),
     audited: co.auditLevel > 0,
+    screen: screenFor(co),
     peak: co.ipoPrice * (1 + Math.max(pop, 0)),
     trough: co.ipoPrice * (1 + Math.min(pop, 0)),
     history: [co.ipoPrice],
@@ -177,6 +183,12 @@ export function advanceDay(s, r) {
     s.sectorHeat[k] = clamp(h * 0.94 + gauss(r) * 0.055, -1, 1);
   }
 
+  /* ── factors ─────────────────────────────────────────────────
+     One draw per session, shared by every listing. This is what makes
+     a sector sell off together rather than each name wandering alone. */
+  if (!s.factors) initFactors(s);
+  stepFactors(s, r);
+
   /* ── price walk ──────────────────────────────────────────── */
   let notional = 0;
   // Index constituents: only companies that traded yesterday as well as today.
@@ -194,7 +206,11 @@ export function advanceDay(s, r) {
     const reversion = clamp(gap * 0.021, -0.028, 0.028);
     const heat = (s.sectorHeat[l.sector] ?? 0) * 0.0052;
     const drift = reversion + regime.drift + heat + (l._q - 0.5) * 0.0026;
-    const shock = gauss(r) * l._vol * 0.0165;
+    // Systematic move shared with the sector and niche, plus what is
+    // genuinely this company's own news.
+    const systematic = factorReturn(s, l);
+    const idio = gauss(r) * l._vol * 0.0080;
+    const shock = systematic + idio;
 
     l.prevPrice = l.price;
     l.price = Math.max(0.05, l.price * Math.exp(drift + shock));
@@ -264,6 +280,13 @@ export function advanceDay(s, r) {
   }
 
   /* ── revenue & cost ──────────────────────────────────────── */
+  /* ── funds ───────────────────────────────────────────────────
+     Marked to market on the new prices, then billed. */
+  stepFunds(s);
+  const mgmtFees = collectFundFees(s);
+  report.mgmtFees = mgmtFees;
+  s.stats.peakAum = Math.max(s.stats.peakAum || 0, totalAum(s));
+
   const up = s.upgradeEffects;
   const tradingFees = Math.round(notional * s.balance.tradingFeeBps / 10000 * up.feeMult);
   const dataFees = Math.round(up.income);
@@ -378,6 +401,16 @@ export function advanceDay(s, r) {
   if ((s.day - 1) % DAYS_PER_WEEK === 0) {
     s.week++;
     s.audits = auditsMax(s);
+
+    /* Investors re-score every fund and move money. Inflows have to buy
+       the constituents, so the flow itself moves prices. */
+    if (s.funds.length) {
+      if (!s.investors) initInvestors(s);
+      const alloc = runAllocation(s, r, marketCap(s));
+      applyFlowImpact(s, alloc.flows);
+      for (const f of s.funds) f.peakAum = Math.max(f.peakAum || 0, f.aum);
+      report.allocation = alloc;
+    }
     report.weekClose = closeWeek(s, r, report);
     if (s.week % WEEKS_PER_QUARTER === 1 && s.week > 1) {
       report.quarterClose = closeQuarter(s, r, report);

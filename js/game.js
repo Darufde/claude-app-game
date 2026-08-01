@@ -16,6 +16,10 @@ import {
 } from './data.js';
 import { drawPriceChart, drawIndexChart, drawSectorBars } from './charts.js';
 import { burst, cannons, sparkle } from './celebrate.js';
+import { bindFloor, renderFloor, renderFunds, renderFund, renderInvestors } from './floor.js';
+import { totalAum } from './funds.js';
+import { makeTicker } from './data.js';
+export { renderFloor, renderFunds, renderInvestors } from './floor.js';
 import {
   advanceDay, acceptApplicant, rejectApplicant, refillQueue,
   forceDelist, forceDelistCost,
@@ -35,6 +39,7 @@ let cards = [];               // visible card stack, [0] = top
 let busy = false;
 let tape = null;
 let prevCapital = 0, prevMcap = 0;
+let floorTape = null;
 let onExit = null;
 
 const dom = {};
@@ -65,19 +70,36 @@ export function startGame(state, rng, { exit } = {}) {
   dom.name.textContent = S.name;
 
   refillQueue(S, R);
-  showScreen('game');
-  bg.setIntensity(0.55);
+  bindFloor(S, R, { nameSheet: openNameSheet, afterChange: () => { syncHud(); enterFloor(); } });
 
   if (!tape) tape = makeTape($('#game-tape'), tapeItems());
   else tape.update(tapeItems());
+  if (!floorTape) floorTape = makeTape($('#floor-tape'), tapeItems());
+  else floorTape.update(tapeItems());
 
   syncHud(true);
-  buildStack();
+  enterFloor();
 
   if (S.day <= 1) {
     sfx.bell();
-    setTimeout(() => toast('The bell rings. You are open.', 'gold'), 400);
+    setTimeout(() => toast('The bell rings. You are open.', 'gold'), 500);
   }
+}
+
+/* The exchange is home; the filings deck is somewhere you go. */
+export function enterFloor() {
+  showScreen('floor');
+  bg.setIntensity(0.8);
+  floorTape?.update(tapeItems());
+  renderFloor();
+}
+
+export function enterFilings() {
+  showScreen('game');
+  bg.setIntensity(0.5);
+  tape.update(tapeItems());
+  syncHud(true);
+  buildStack();
   dom.hint.classList.toggle('gone', S.stats.accepted + S.stats.rejected > 3);
 }
 
@@ -275,7 +297,8 @@ async function resolve(kind) {
 
   advanceStack();
 
-  const report = advanceDay(S, R);
+  const rep = advanceDay(S, R);
+  const report = rep;
   await wait(260);
 
   /* ── HUD ─────────────────────────────────────────────────── */
@@ -298,7 +321,21 @@ async function resolve(kind) {
   saveGame(S, R);
   busy = false;
 
-  if (S.over) endGame();
+  if (S.over) { endGame(); return; }
+
+  // A week's filings is a session. When it closes, go back to the floor —
+  // the point of the game is the exchange, not the queue of cards.
+  if (rep.weekClose) enterFloor();
+}
+
+/** Shared naming sheet — used for listings and for funds. */
+export async function openNameSheet(cfg = {}) {
+  return namingSheet({
+    taken: S.takenTickers,
+    validateName, validateTicker, chipStyle,
+    suggestTicker: (n) => makeTicker(n || 'FUND', S.takenTickers, R),
+    ...cfg,
+  });
 }
 
 /**
@@ -307,11 +344,7 @@ async function resolve(kind) {
  */
 async function offerNaming(co) {
   if (!prefs.naming) return;
-  const result = await namingSheet({
-    company: co,
-    taken: S.takenTickers,
-    validateName, validateTicker, chipStyle,
-  });
+  const result = await openNameSheet({ company: co });
   if (!result) return;
   if (result.ticker !== co.ticker) {
     S.takenTickers.delete(co.ticker);
@@ -806,8 +839,10 @@ export function renderCompany(l) {
       el('span', { class: 'btn-label', text: 'Rename listing' }));
     rename.addEventListener('click', async () => {
       sfx.tap();
-      const res = await namingSheet({
-        company: l, taken: S.takenTickers, validateName, validateTicker, chipStyle,
+      const res = await openNameSheet({
+        company: l, kicker: 'Listed company', title: 'Rename it',
+        body: `Currently trading as <em>${l.name}</em>.`,
+        confirm: 'Save', dismissLabel: 'Leave it alone',
       });
       if (!res) return;
       if (res.ticker !== l.ticker) { S.takenTickers.delete(l.ticker); S.takenTickers.add(res.ticker); }

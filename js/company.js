@@ -13,6 +13,7 @@
 
 import { rf, ri, pick, weighted, gauss, clamp, lerp, inv } from './util.js';
 import { NICHES, SECTORS, FLAGS, UNDERWRITERS, makeTicker, REGIMES, tailsFor } from './data.js';
+import { makeCompanyName } from './names.js';
 
 let uid = 0;
 
@@ -102,7 +103,7 @@ export function generateApplicant(state, r) {
   while (hiddenFlags.length > 3) hiddenFlags.splice(Math.floor(r() * hiddenFlags.length), 1);
 
   /* ── identity ──────────────────────────────────────────── */
-  const name = `${pick(r, N.heads)} ${pick(r, tailsFor(N.sector))}`;
+  const name = makeCompanyName(r, N, tailsFor(N.sector), N.sector);
   const ticker = makeTicker(name, state.takenTickers, r);
 
   const uwTier = weighted(r, [

@@ -37,13 +37,16 @@ To reach it from your phone on the same wifi, swap `localhost` for your computer
 
 ## The game
 
-You start with cash, a middling reputation, and an empty board.
+You start with cash, a middling reputation, and an empty board. The **Floor** is home — your index,
+your capital, your assets under management and the wire all live there. Filings are something you go
+and do, a week at a time, then come back and watch what you built.
 
 | Resource | What it does |
 | --- | --- |
 | **Capital** | Listing fees, trading fees and data sales come in; running costs go out every session. |
 | **Standing** | What the market thinks of your judgement. It settles at the level your board deserves, and gates who files with you. |
 | **Market cap** | Total value of everything on your board. It's the score, and it drives trading-fee income. |
+| **AUM** | Money investors have left in your funds. You charge a management fee on all of it. |
 
 ### What actually decides it
 
@@ -75,6 +78,34 @@ says what you decide it says. Rename anything later from its page.
 Spend capital on the floor itself — analyst desk, listings committee, colocation hall, issuer
 relations, data terminal, surveillance unit. Six upgrade tracks, each compounding with everything
 you list afterwards. This is the difference between a curb market and an institution.
+
+### Funds
+
+A fund declares a mandate — **total market**, a single **sector**, a **size band**, or an **income**,
+**growth** or **quality** screen. Every listing that fits becomes a constituent automatically and
+permanently, so a fund launched in week three quietly absorbs companies you admit in week thirty.
+
+You set the management fee. Higher earns more per dollar and repels the money that reads the fine
+print — that trade-off is the product decision.
+
+### Investors
+
+Five cohorts re-score your funds every week. Retail chases whatever went up. Pension funds want low
+fees and low volatility. Sovereign wealth wants scale and won't touch a disreputable exchange. Hedge
+funds actively want the volatility and leave as fast as they came.
+
+Their money isn't only fee income: inflows have to *buy* the constituents, so a popular fund lifts
+the prices of everything inside it.
+
+### How the market moves
+
+Prices aren't independent. Each session draws a market shock, then one per sector, then one per
+niche, and every company loads on all three plus its own news. Measured over a 200-session run, the
+realised correlations come out at **0.57 same-niche, 0.49 same-sector, 0.32 cross-sector** — two
+lithium miners move nearly together, a miner and a software company share only the market. Some
+sectors are genuinely linked (energy/materials, financials/property, transport/industrials).
+
+That's why breadth is worth something.
 
 ### Charts
 
@@ -140,6 +171,11 @@ js/
   state.js             game state, economy constants, save/load
   card.js              prospectus card + swipe physics
   ui.js                screens, modals, toasts, ticker tape, sparklines
+  floor.js             the Floor dashboard, funds and investor screens
+  market.js            the factor model — market/sector/niche shocks
+  funds.js             fund mandates, NAV chaining, management fees
+  investors.js         the five investor cohorts and weekly allocation
+  names.js             company and fund name generation
   industries.js        12 sectors, 57 niches — the company content
   charts.js            canvas candlestick / index / sector charts
   celebrate.js         particle bursts for milestones
@@ -166,6 +202,8 @@ node scripts/make-icons.mjs
 
 - **Applicants are drawn as a niche first** — a radiopharmacy shop, a self-storage REIT, a cold-chain
   operator — and the niche drives naming, flavour, volatility and growth character. 57 of them.
+- **Names come from several patterns weighted per sector**: biotechs coin Latinate names, industrials
+  are named after the family that founded them, consumer brands sound like something you'd buy.
 - **The quality neutral point sits above average on purpose.** Fair value compounds at
   `(quality − 0.55) × 0.016` per session, so an adequate business goes nowhere and only genuinely
   good ones compound. This is what makes reading the prospectus worth doing.
@@ -178,6 +216,5 @@ node scripts/make-icons.mjs
   listed on both the previous and current session, so admitting or losing a company never moves the
   index by itself — only price does.
 - Balance is tuned against a headless harness playing full 52-week seasons across six strategies.
-  Current spread on Open Outcry: accept-everything reaches ~$61B, careful prospectus-reading ~$96B,
-  perfect information ~$150B. On Black Monday the gap is 4×. Nobody dies except on the hardest
-  setting.
+  Current spread on Open Outcry: accept-everything reaches ~$45B, careful prospectus-reading ~$154B,
+  perfect information ~$214B. Nobody dies except on the hardest setting.

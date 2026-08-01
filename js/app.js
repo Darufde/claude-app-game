@@ -152,6 +152,10 @@ function route(action) {
     case 'pause':      game.renderPause(); openSheet('pause'); break;
     case 'board':      game.renderBoard(); openSheet('board'); break;
     case 'markets':    game.renderMarkets(); openSheet('markets'); break;
+    case 'funds':      game.renderFunds(); openSheet('funds'); break;
+    case 'investors':  game.renderInvestors(); openSheet('investors'); break;
+    case 'filings':    game.enterFilings(); break;
+    case 'to-floor':   game.enterFloor(); break;
     case 'upgrades':   game.renderUpgrades(); openSheet('upgrades'); break;
     case 'close-company': closeSheet(); break;
     case 'quit':       confirmQuit(); break;
@@ -212,69 +216,74 @@ function onGameExit(where) {
 function buildHowTo() {
   $('#howto-doc').innerHTML = `
     <h3>What you are</h3>
-    <p>You run a stock exchange. You do not pick stocks — you decide <b>who gets to be a stock</b>.
-    Companies file to list on your floor. Swipe right to admit them, left to turn them away.
-    Everything you build from there is yours.</p>
+    <p>You run a stock exchange. You decide <b>who gets to be a stock</b>, you package those
+    companies into funds, and you take a cut of everything that moves across your floor.</p>
+    <p>The <b>Floor</b> is home. Your index, your capital, your assets under management and the
+    wire all live there. Filings are something you go and do — a week at a time — and then you come
+    back and watch what you built.</p>
 
-    <h3>The three numbers</h3>
+    <h3>The four numbers</h3>
     <ul>
-      <li><b>Capital</b> — cash. Listing fees, trading fees and data sales come in; running costs go out every day.</li>
-      <li><b>Standing</b> — what the market thinks of your judgement. It settles at the level your board deserves, and it gates who bothers filing with you.</li>
-      <li><b>Market cap</b> — the total value of everything on your board. It is the score, and it drives your fee income.</li>
+      <li><b>Capital</b> — cash. Listing fees, trading fees, data sales and management fees come in; running costs go out every session.</li>
+      <li><b>Market cap</b> — everything on your board, added up.</li>
+      <li><b>AUM</b> — money investors have left in your funds. You charge a fee on all of it.</li>
+      <li><b>Standing</b> — what the market thinks of your judgement. It settles at the level your board deserves.</li>
     </ul>
 
-    <h3>What actually decides it</h3>
+    <h3>Admitting companies</h3>
     <p>Quality compounds. A genuinely good business drifts upward for as long as you hold it; a
-    merely adequate one goes nowhere; a weak one rots. <b>The whole game is telling them apart
-    before you spend a slot.</b></p>
-    <p>Read the prospectus properly. Growth and margin matter, but so does what you are being
-    asked to pay — a wonderful company at a silly price is still a bad listing. The tags on each
-    card are real signals, and the underwriter's reputation is a signal too.</p>
+    merely adequate one goes nowhere; a weak one rots. Read the prospectus properly — growth and
+    margin matter, but so does what you are being asked to pay.</p>
+    <p>Board space is capped: <b>ten</b> slots at the bottom rung, far more once you have built up.
+    Every slot spent on something mediocre is a slot you do not have next week. Slots free up when a
+    company is taken over, collapses, or is poached — and you can remove one yourself from its page.</p>
+    <p>When you admit a company you can put your own name and ticker on it. It is your exchange.</p>
 
-    <h3>Board space is the real currency</h3>
-    <p>You can only list so many companies at once — <b>ten</b> at the bottom rung, far more once
-    you have built up. Every slot spent on something mediocre is a slot you do not have when
-    something excellent files next week.</p>
-    <p>Slots free up when a company is taken over, collapses, or is poached by a rival. You can
-    also open <b>The Board</b>, tap any listing, and remove it yourself — cheap when it is a
-    disaster, expensive when it is a winner.</p>
+    <h3>Funds</h3>
+    <p>A fund declares a mandate — <b>total market</b>, a single <b>sector</b>, a <b>size band</b>,
+    or an <b>income</b>, <b>growth</b> or <b>quality</b> screen. Every listing that fits is a
+    constituent, automatically and permanently, so a fund launched in week three quietly absorbs
+    companies you admit in week thirty.</p>
+    <p>You set the management fee. A higher fee earns more on every dollar and repels the money that
+    reads the fine print — that trade-off is the whole product decision.</p>
 
-    <h3>Name them</h3>
-    <p>When you admit a company you can put your own name and ticker on it. It is your exchange;
-    the tape says what you decide it says. You can rename anything later from its page.</p>
+    <h3>Investors</h3>
+    <p>Five kinds of money watch your funds and re-score them every week. <b>Retail</b> chases
+    whatever went up. <b>Pension funds</b> want low fees and low volatility. <b>Sovereign wealth</b>
+    wants scale and will not touch a disreputable exchange. <b>Hedge funds</b> actively want the
+    volatility, and leave as fast as they came.</p>
+    <p>Their money is not just fee income: inflows have to buy the constituents, so a popular fund
+    lifts the prices of everything inside it. Build the board the money wants, and the board gets
+    more valuable for having been wanted.</p>
 
-    <h3>Build the exchange</h3>
-    <p>Tap the star to spend capital on the floor itself — analysts, listing committee, colocation,
-    issuer relations, a data terminal, market surveillance. These compound with everything you do
-    afterwards, and they are the difference between a curb market and an institution.</p>
+    <h3>How the market moves</h3>
+    <p>Prices are not independent. Every session draws a market shock, then a shock per sector, then
+    one per niche, and each company loads on all three plus its own news. <b>Two lithium miners move
+    almost together; two materials companies move together but less; a miner and a software company
+    share only the market.</b> Some sectors are genuinely linked — energy and materials, financials
+    and property, transport and industrials.</p>
+    <p>That is why breadth is worth something. A board concentrated in one sector is one bad rotation
+    away from a very quiet quarter.</p>
+
+    <h3>Building the exchange</h3>
+    <p>Spend capital on the floor itself: analysts, a listings committee, colocation, issuer
+    relations, a data terminal, market surveillance. These compound with everything you do afterwards.</p>
 
     <h3>Due diligence</h3>
-    <p>The magnifier commissions a review of the file in front of you, billed against the size of
-    the company. Three stages: <b>valuation</b> (worth versus ask), <b>business review</b> (how good
-    it really is), and <b>the full file</b> (integrity, plus disclosures that were never published).
-    Reviews are not free and not always worth it — that judgement is part of the game.</p>
-
-    <h3>The clock</h3>
-    <p>One decision is one trading day. Five days is a week — settlement, a report, reviews refresh.
-    Four weeks is a quarter — annual fees land and the regulator samples your book.</p>
+    <p>The magnifier commissions a review of the file in front of you, billed against the size of the
+    company. Three stages: <b>valuation</b>, <b>business review</b>, and <b>the full file</b>.
+    Reviews are not free and not always worth it.</p>
 
     <h3>Setbacks, not endings</h3>
-    <p>On <b>Founder's Market</b> and <b>Open Outcry</b> you cannot lose the game. Run out of cash and
-    a consortium extends emergency credit — you keep trading, but the debt is real and the interest
-    is charged daily. Lose the regulator's confidence and you go on probation rather than being
-    closed. Only <b>Black Monday</b> can genuinely end a run.</p>
-
-    <h3>Climbing</h3>
-    <p>Standing plus scale promotes you through five tiers, from a <b>Curb Market</b> to an
-    <b>Apex Bourse</b>. Each tier grants more slots, richer valuations, and better applicants.
-    A broad board across many sectors is worth more standing than a narrow one.</p>
+    <p>On <b>Founder's Market</b> and <b>Open Outcry</b> you cannot lose. Run out of cash and a
+    consortium extends emergency credit — you keep trading, but the debt is real and interest is
+    charged every session. Only <b>Black Monday</b> can end a run.</p>
 
     <h3>Controls</h3>
     <ul>
-      <li>Drag the prospectus, or tap the buttons underneath.</li>
-      <li>Chart icon opens your board; tap a listing for its full chart and history.</li>
-      <li>“Index” inside the board shows your exchange's own index, sector weights and heat.</li>
-      <li>On a keyboard: ← pass, → list, ↑ audit.</li>
+      <li>From the Floor: <b>Open the Session</b> runs a week of filings, then returns you home.</li>
+      <li>Drag the prospectus, or tap the buttons underneath. Keyboard: ← pass, → list, ↑ audit.</li>
+      <li>Tap any listing or fund for its full chart and history.</li>
     </ul>`;
 }
 

@@ -53,7 +53,7 @@ export function saveMeta() { store.set(META_KEY, meta); }
 export function newGame({ name, difficulty = 'normal', seed }) {
   const D = DIFFICULTIES[difficulty] ?? DIFFICULTIES.normal;
   const s = {
-    version: 2,
+    version: 3,
     seed: seed ?? ((Math.random() * 4294967296) >>> 0),
     rngState: null,
     name: (name || 'MERIDIAN').toUpperCase().slice(0, 22),
@@ -77,6 +77,10 @@ export function newGame({ name, difficulty = 'normal', seed }) {
     auditsBase: D.audits,
     permadeath: D.permadeath,
 
+    funds: [],
+    investors: null,      // seeded lazily by investors.js
+    factors: null,        // seeded lazily by market.js
+
     upgrades: Object.fromEntries(UPGRADE_KEYS.map(k => [k, 0])),
     milestones: [],       // fired milestone ids
     bailouts: 0,          // times rescued from insolvency
@@ -87,7 +91,8 @@ export function newGame({ name, difficulty = 'normal', seed }) {
     stats: {
       accepted: 0, rejected: 0, delisted: 0, scandals: 0, named: 0,
       fraudsCaught: 0, fraudsListed: 0, starsMissed: 0, acquisitions: 0,
-      feesListing: 0, feesTrading: 0, feesAnnual: 0, feesData: 0, opexPaid: 0,
+      feesListing: 0, feesTrading: 0, feesAnnual: 0, feesData: 0, feesManagement: 0, opexPaid: 0,
+      fundsLaunched: 0, peakAum: 0,
       upgradeSpend: 0, peakCapital: D.capital, peakMcap: 0, auditsRun: 0,
       bestMultiple: 1,
     },
@@ -158,6 +163,7 @@ export function decorate(s) {
   });
   if (!s.upgrades) s.upgrades = Object.fromEntries(UPGRADE_KEYS.map(k => [k, 0]));
   if (!s.milestones) s.milestones = [];
+  if (!s.funds) s.funds = [];
   if (!s.history.index) s.history.index = [];
   Object.defineProperty(s, 'takenTickers', {
     get: () => s.takenTickersSet, configurable: true,
@@ -193,7 +199,7 @@ export function saveGame(s, rng) {
 
 export function loadGame() {
   const raw = store.get(SAVE_KEY, null);
-  if (!raw || raw.version !== 2 || raw.over) return null;
+  if (!raw || raw.version !== 3 || raw.over) return null;
   const s = raw;
   s.takenTickersSet = new Set(s.takenTickers || []);
   decorate(s);
@@ -203,7 +209,7 @@ export function loadGame() {
 
 export function hasSave() {
   const raw = store.get(SAVE_KEY, null);
-  return !!(raw && raw.version === 2 && !raw.over);
+  return !!(raw && raw.version === 3 && !raw.over);
 }
 
 export function clearSave() { store.del(SAVE_KEY); }

@@ -4,7 +4,11 @@
 
 /* ─── panels ───────────────────────────────────────────────── */
 .panel {
-  background: linear-gradient(168deg, rgba(255,255,255,.045), rgba(255,255,255,.014));
+  /* Opaque enough to sit over the animated backdrop without the candles
+     showing through the numbers. */
+  background:
+    linear-gradient(168deg, rgba(255,255,255,.05), rgba(255,255,255,.015)),
+    linear-gradient(180deg, rgba(11,15,24,.93), rgba(7,10,17,.95));
   border: 1px solid rgba(255,255,255,.075);
   border-radius: 16px; padding: 14px; margin-bottom: 12px;
   animation: revealIn .5s var(--ease-out) backwards;

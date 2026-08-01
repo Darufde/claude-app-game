@@ -1,5 +1,5 @@
 /* PARQUET — offline cache. Bump CACHE on every deploy. */
-const CACHE = 'parquet-v2';
+const CACHE = 'parquet-v3';
 
 const ASSETS = [
   './',
@@ -10,10 +10,16 @@ const ASSETS = [
   './css/menu.css',
   './css/game.css',
   './css/build.css',
+  './css/floor.css',
   './js/app.js',
   './js/industries.js',
   './js/charts.js',
   './js/celebrate.js',
+  './js/market.js',
+  './js/funds.js',
+  './js/investors.js',
+  './js/names.js',
+  './js/floor.js',
   './js/audio.js',
   './js/bg.js',
   './js/card.js',

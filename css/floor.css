@@ -1,0 +1,140 @@
+/* ═══════════════════════════════════════════════════════════════
+   floor — dashboard, funds, investors
+   ═══════════════════════════════════════════════════════════════ */
+
+#screen-floor { overflow: hidden; }
+.hud.hud-slim { padding-bottom: 0; }
+
+.floor-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 12px 14px calc(24px + var(--safe-b));
+}
+
+/* ─── hero ─────────────────────────────────────────────────── */
+.floor-hero { padding: 15px 14px 10px; }
+.hero-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.hero-top > div:first-child { min-width: 0; }
+.hero-index {
+  font-family: var(--ff-num); font-size: 40px; font-weight: 700;
+  letter-spacing: -.035em; line-height: 1; margin-top: 3px;
+}
+.hero-right { text-align: right; }
+.hero-session {
+  font-family: var(--ff-num); font-size: 9px; letter-spacing: .12em;
+  color: var(--fg-mute); margin-top: 5px;
+}
+
+/* ─── headline stats ───────────────────────────────────────── */
+.floor-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+.fstat {
+  padding: 11px 12px; border-radius: 13px;
+  background:
+    linear-gradient(165deg, rgba(255,255,255,.05), rgba(255,255,255,.017)),
+    linear-gradient(180deg, rgba(11,15,24,.92), rgba(7,10,17,.94));
+  border: 1px solid rgba(255,255,255,.07);
+  animation: revealIn .5s var(--ease-out) backwards; animation-delay: var(--d, 0ms);
+}
+.fstat .k { display: block; font-size: 8px; letter-spacing: .19em; color: var(--fg-mute); font-weight: 650; margin-bottom: 4px; }
+.fstat .v { display: block; font-family: var(--ff-num); font-size: 20px; font-weight: 650; letter-spacing: -.025em; }
+
+.floor-cta { margin-bottom: 12px; }
+
+/* ─── quick nav ────────────────────────────────────────────── */
+.floor-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin-bottom: 12px; }
+.fnav {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 12px 4px 10px; border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+    linear-gradient(180deg, rgba(11,15,24,.9), rgba(7,10,17,.93));
+  border: 1px solid rgba(255,255,255,.075);
+  transition: transform .16s var(--ease-out), background .2s, border-color .2s;
+}
+.fnav:active { transform: scale(.94); background: rgba(255,255,255,.09); }
+.fn-ic { font-size: 15px; color: var(--gold); line-height: 1; }
+.fn-l { font-size: 10.5px; font-weight: 600; color: var(--fg-dim); }
+.fn-v { font-family: var(--ff-num); font-size: 8.5px; color: var(--fg-mute); letter-spacing: .04em; }
+
+/* ─── the wire ─────────────────────────────────────────────── */
+.feed { display: flex; flex-direction: column; gap: 1px; }
+.feed-row {
+  display: flex; align-items: baseline; gap: 9px; padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,.045);
+  animation: revealIn .45s var(--ease-out) backwards; animation-delay: var(--d, 0ms);
+}
+.feed-row:last-child { border-bottom: 0; }
+.fd-day {
+  font-family: var(--ff-num); font-size: 9px; color: var(--fg-mute);
+  min-width: 26px; letter-spacing: .04em;
+}
+.fd-t { font-size: 12.5px; color: var(--fg-dim); line-height: 1.4; }
+.feed-row.k-scandal .fd-t, .feed-row.k-delist .fd-t, .feed-row.k-poach .fd-t { color: #ff97a1; }
+.feed-row.k-acq .fd-t, .feed-row.k-list .fd-t { color: #86e9bd; }
+.feed-row.k-rescue .fd-t, .feed-row.k-probation .fd-t { color: var(--gold-hi); }
+.feed-empty { font-size: 12.5px; color: var(--fg-mute); padding: 8px 0; }
+
+/* ─── funds ────────────────────────────────────────────────── */
+.fund {
+  display: flex; align-items: center; gap: 11px; padding: 12px 13px; margin-bottom: 8px;
+  border-radius: 15px; background: rgba(255,255,255,.032);
+  border: 1px solid rgba(255,255,255,.07);
+  animation: revealIn .5s var(--ease-out) backwards; animation-delay: var(--d, 0ms);
+  transition: transform .16s var(--ease-out), background .2s;
+}
+.fund:active { transform: scale(.98); background: rgba(255,255,255,.06); }
+.fund-chip {
+  min-width: 48px; height: 32px; padding: 0 9px; display: grid; place-items: center;
+  border-radius: 9px; font-family: var(--ff-num); font-size: 12.5px; font-weight: 700;
+  color: #0c0f16; letter-spacing: .04em; flex-shrink: 0;
+  box-shadow: 0 3px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.32);
+}
+.fund-mid { flex: 1; min-width: 0; }
+.fund-name { font-size: 13.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fund-sub { font-size: 10px; color: var(--fg-mute); margin-top: 2px; letter-spacing: .03em; }
+.fund-right { text-align: right; flex-shrink: 0; }
+.fund-aum { font-family: var(--ff-num); font-size: 13px; font-weight: 650; }
+.fund-ret { font-family: var(--ff-num); font-size: 10.5px; font-weight: 600; margin-top: 1px; }
+.fund-ret.up { color: var(--up); } .fund-ret.dn { color: var(--down); }
+
+.holding { display: flex; align-items: center; gap: 9px; padding: 6px 0; }
+.hold-w { font-family: var(--ff-num); font-size: 11.5px; font-weight: 650; color: var(--fg-dim); }
+
+/* ─── fee slider ───────────────────────────────────────────── */
+.fee-val {
+  font-family: var(--ff-num); font-size: 26px; font-weight: 700;
+  color: var(--gold-hi); letter-spacing: -.02em; margin-bottom: 8px;
+}
+.fee-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+  border-radius: 3px; background: rgba(255,255,255,.13); outline: none;
+}
+.fee-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: linear-gradient(160deg, var(--gold-hi), var(--brass));
+  box-shadow: 0 2px 10px rgba(232,187,98,.5); cursor: pointer;
+}
+.fee-slider::-moz-range-thumb {
+  width: 22px; height: 22px; border: 0; border-radius: 50%;
+  background: var(--gold); box-shadow: 0 2px 10px rgba(232,187,98,.5);
+}
+
+/* ─── investors ────────────────────────────────────────────── */
+.investor { padding: 13px 14px; }
+.inv-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.inv-name { font-size: 14.5px; font-weight: 650; }
+.inv-amt { font-family: var(--ff-num); font-size: 14px; font-weight: 650; color: var(--gold-hi); }
+.inv-blurb { font-size: 11.5px; color: var(--fg-mute); margin: 4px 0 9px; line-height: 1.45; }
+.inv-bar { height: 4px; border-radius: 3px; background: rgba(255,255,255,.09); overflow: hidden; }
+.inv-bar i {
+  display: block; height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--brass), var(--gold-hi));
+  transition: width .8s var(--ease-out);
+}
+.inv-foot { font-size: 10.5px; color: var(--fg-mute); margin-top: 7px; }
+
+/* Modal action lists can get long on the fund-creation flow. */
+.modal-card .modal-actions .btn-ghost .btn-meta {
+  text-transform: none; letter-spacing: 0; font-size: 10.5px; line-height: 1.3;
+}
