@@ -1,167 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   data — sectors, name pools, flags, underwriters, event deck
+   data — flags, underwriters, tiers, upgrades, milestones, regimes
+   Sector/niche content lives in industries.js
    ═══════════════════════════════════════════════════════════════ */
 
-export const SECTORS = {
-  tech: {
-    label: 'Technology', vol: 0.95, liq: 1.25, hype: 1.35,
-    heads: ['Nexus', 'Vertex', 'Lumen', 'Cipher', 'Quanta', 'Helix', 'Orbital', 'Sable', 'Kestrel', 'Praxis', 'Axiom', 'Nimbus', 'Zenith', 'Halcyon', 'Vantage'],
-    tails: ['Systems', 'Labs', 'Dynamics', 'Compute', 'Networks', 'Technologies', 'Cloud', 'Interactive', 'Digital'],
-    blurbs: [
-      'Orchestration layer for enterprise workloads nobody wants to migrate.',
-      'Developer tooling with a beloved community and no pricing page.',
-      'Edge inference silicon. Two customers, both of them investors.',
-      'Vertical SaaS for an industry that still faxes things.',
-      'Data infrastructure. Growth is real; the margins are aspirational.',
-      'They built an internal tool, then sold it. Now it is the whole company.',
-    ],
-  },
-  bio: {
-    label: 'Biotech', vol: 1.55, liq: 0.95, hype: 1.25,
-    heads: ['Corvexa', 'Meridia', 'Alveo', 'Cytoris', 'Nuvara', 'Peptide', 'Elara', 'Somaris', 'Halcyra', 'Verdant', 'Ossia', 'Trellis'],
-    tails: ['Therapeutics', 'Biosciences', 'Pharma', 'Genomics', 'Bio', 'Medical', 'Health'],
-    blurbs: [
-      'Phase II readout in eleven weeks. Everything rides on it.',
-      'Platform company. Six programs, zero approvals, infinite optimism.',
-      'Licensed a shelved compound and gave it a better name.',
-      'Oncology asset with genuinely striking preclinical data.',
-      'Diagnostics business subsidising a moonshot pipeline.',
-      'The founder is a Nobel laureate. The CFO is her nephew.',
-    ],
-  },
-  energy: {
-    label: 'Energy', vol: 1.2, liq: 1.05, hype: 0.85,
-    heads: ['Boreal', 'Cascade', 'Ironwood', 'Solstice', 'Anvil', 'Permian', 'Northwind', 'Terravolt', 'Aegis', 'Basalt'],
-    tails: ['Energy', 'Power', 'Resources', 'Petroleum', 'Renewables', 'Grid', 'Hydrogen'],
-    blurbs: [
-      'Proven reserves, unproven management.',
-      'Grid-scale storage with a signed offtake agreement.',
-      'Offshore wind. Capital intensive, politically fashionable.',
-      'Refining assets bought at the bottom of the cycle.',
-      'Small modular reactors, large modular promises.',
-      'Cash-generative today, structurally obsolete by 2040.',
-    ],
-  },
-  fin: {
-    label: 'Financials', vol: 0.9, liq: 1.35, hype: 0.9,
-    heads: ['Blackrail', 'Sterling', 'Covenant', 'Ashfield', 'Harborline', 'Chandler', 'Redmont', 'Ironbank', 'Larkspur', 'Whitmore'],
-    tails: ['Capital', 'Holdings', 'Financial', 'Bancorp', 'Partners', 'Credit', 'Asset Management'],
-    blurbs: [
-      'Specialty lender. The book looks clean, in this rate environment.',
-      'Payments rails in three emerging markets and one lawsuit.',
-      'Insurance float invested rather more adventurously than disclosed.',
-      'Asset manager listing right as its flagship fund peaks.',
-      'Consumer credit with delinquency curves drawn optimistically.',
-      'Exchange-adjacent infrastructure. Boring, profitable, unloved.',
-    ],
-  },
-  ind: {
-    label: 'Industrials', vol: 0.75, liq: 0.9, hype: 0.65,
-    heads: ['Girdler', 'Halloran', 'Vantablock', 'Merrow', 'Kessler', 'Braddock', 'Tarn', 'Stanchion', 'Fairweather', 'Grimsby'],
-    tails: ['Industries', 'Manufacturing', 'Works', 'Engineering', 'Fabrication', 'Group'],
-    blurbs: [
-      'Precision components. Boring, profitable, family-controlled.',
-      'Order book stretches into 2031. So does the debt schedule.',
-      'Robotics integrator with genuine pricing power.',
-      'Three plants, two unions, one very good CEO.',
-      'Aerospace tier-two supplier. Certification is the moat.',
-      'Legacy machinery business pivoting to service revenue.',
-    ],
-  },
-  cons: {
-    label: 'Consumer', vol: 1.0, liq: 1.15, hype: 1.15,
-    heads: ['Marlowe', 'Hearthstone', 'Peartree', 'Bellweather', 'Copperleaf', 'Tandem', 'Wildgrove', 'Sundry', 'Latchkey', 'Rosewater'],
-    tails: ['Brands', 'Company', 'Collective', 'Goods', 'Retail', 'Foods', 'Studios'],
-    blurbs: [
-      'Direct-to-consumer darling with a customer acquisition problem.',
-      'Nine hundred stores and a lease portfolio like a hostage note.',
-      'The brand is genuinely loved. The supply chain is not.',
-      'Beverage company growing 40% off a very small base.',
-      'Founder-led, cult following, no succession plan.',
-      'Private label manufacturer nobody notices until margins move.',
-    ],
-  },
-  re: {
-    label: 'Real Estate', vol: 0.8, liq: 0.85, hype: 0.7,
-    heads: ['Cornerstone', 'Kingsmere', 'Alderway', 'Pinnacle', 'Rowanhall', 'Fieldgate', 'Estuary', 'Thornbury'],
-    tails: ['Properties', 'REIT', 'Estates', 'Realty', 'Land Trust', 'Development'],
-    blurbs: [
-      'Logistics warehouses. The tenant list is the whole thesis.',
-      'Office REIT. Yes, in this market. They are aware.',
-      'Data centre landlord with a queue of hyperscaler demand.',
-      'Residential developer with a very leveraged balance sheet.',
-      'Ground leases in three capitals. Slow, safe, dull.',
-      'Retail parks bought at distressed prices in 2021.',
-    ],
-  },
-  mine: {
-    label: 'Materials', vol: 1.45, liq: 0.8, hype: 1.05,
-    heads: ['Sierra Plata', 'Kolar', 'Deepvein', 'Auroch', 'Tamarind', 'Blackrock Ridge', 'Vulcan Bay', 'Quarrystone'],
-    tails: ['Mining', 'Metals', 'Minerals', 'Resources', 'Extraction', 'Lithium'],
-    blurbs: [
-      'One asset, one jurisdiction, one very political permit.',
-      'Copper grades that would be exceptional if the drill logs are real.',
-      'Lithium brine with a decade of offtake demand behind it.',
-      'Gold explorer that has never produced an ounce.',
-      'Rare earths outside China. Everyone wants this to work.',
-      'Producing mine, falling grades, rising strip ratio.',
-    ],
-  },
-  media: {
-    label: 'Media', vol: 1.25, liq: 1.2, hype: 1.4,
-    heads: ['Silverline', 'Chroma', 'Fable', 'Broadsheet', 'Nightingale', 'Lantern', 'Ovation', 'Tessellate'],
-    tails: ['Media', 'Studios', 'Entertainment', 'Broadcasting', 'Networks', 'Content'],
-    blurbs: [
-      'Content library worth more than the operating business.',
-      'Streaming service with subscriber numbers defined creatively.',
-      'Games studio between hits. It is always between hits.',
-      'Live events business with genuinely unstoppable momentum.',
-      'Legacy publisher with one very valuable franchise.',
-      'Creator economy platform. Churn is the elephant.',
-    ],
-  },
-  log: {
-    label: 'Logistics', vol: 0.85, liq: 1.0, hype: 0.75,
-    heads: ['Portside', 'Ridgeway', 'Continental', 'Fairhaven', 'Longhaul', 'Beacon Line', 'Trellick', 'Waypoint'],
-    tails: ['Logistics', 'Freight', 'Shipping', 'Transport', 'Supply', 'Rail'],
-    blurbs: [
-      'Last-mile network with real density in four cities.',
-      'Dry bulk shipping. Cyclical, and the cycle is turning.',
-      'Cold chain operator with the pharma contracts to prove it.',
-      'Regional rail concession running to 2049.',
-      'Freight brokerage with a software multiple ambition.',
-      'Port terminal. The permit is the business.',
-    ],
-  },
-  space: {
-    label: 'Aerospace', vol: 1.6, liq: 1.1, hype: 1.55,
-    heads: ['Perihelion', 'Astra Vale', 'Kármán', 'Ionis', 'Starkeep', 'Highwater', 'Orbex Prime', 'Lodestar'],
-    tails: ['Aerospace', 'Orbital', 'Launch', 'Space Systems', 'Dynamics', 'Propulsion'],
-    blurbs: [
-      'Two successful launches. Three unsuccessful ones. Improving.',
-      'Satellite constellation, 8% deployed, 100% capitalised.',
-      'Defence contracts that are real but slow and thin.',
-      'In-orbit servicing. A market that does not exist yet.',
-      'Propulsion supplier to everyone else in this sector.',
-      'Earth observation data with genuine government demand.',
-    ],
-  },
-  crypto: {
-    label: 'Digital Assets', vol: 1.9, liq: 1.45, hype: 1.75,
-    heads: ['Obelisk', 'Ledgerworks', 'Bastion', 'Aureus', 'Chainmark', 'Vaultline', 'Numeraire', 'Tessera'],
-    tails: ['Digital', 'Holdings', 'Protocol Labs', 'Custody', 'Exchange', 'Treasury'],
-    blurbs: [
-      'Custody and settlement. The compliance build is expensive.',
-      'Treasury company. The strategy is "hold, loudly".',
-      'Mining fleet with a very good power contract.',
-      'Institutional trading venue. Volumes follow sentiment exactly.',
-      'Tokenisation platform pitching to banks that nod politely.',
-      'Profitable in bull markets. That is the entire disclosure.',
-    ],
-  },
-};
-
-export const SECTOR_KEYS = Object.keys(SECTORS);
+export { SECTORS, SECTOR_KEYS, NICHES, nicheOf, tailsFor } from './industries.js';
 
 /* ─── ticker generation ────────────────────────────────────── */
 const VOWELS = 'AEIOU';
@@ -171,18 +13,34 @@ export function makeTicker(name, taken, r) {
   const cands = [];
   if (words.length >= 2) cands.push(words.map(w => w[0]).join('').slice(0, 4));
   const first = words[0] || 'XX';
-  cands.push(first.slice(0, 4));
-  cands.push(first.slice(0, 3));
+  cands.push(first.slice(0, 4), first.slice(0, 3));
   cands.push(first[0] + first.slice(1).replace(new RegExp(`[${VOWELS}]`, 'g'), '').slice(0, 3));
   for (const c of cands) {
     const t = c.replace(/[^A-Z]/g, '');
     if (t.length >= 2 && !taken.has(t)) return t;
   }
   for (let i = 0; i < 400; i++) {
-    const t = (first.slice(0, 2) + String.fromCharCode(65 + Math.floor(r() * 26)) + String.fromCharCode(65 + Math.floor(r() * 26)));
+    const t = first.slice(0, 2)
+      + String.fromCharCode(65 + Math.floor(r() * 26))
+      + String.fromCharCode(65 + Math.floor(r() * 26));
     if (!taken.has(t)) return t;
   }
   return 'ZZ' + Math.floor(r() * 90 + 10);
+}
+
+/** Shared validation for player-chosen tickers. */
+export function validateTicker(raw, taken, currentTicker) {
+  const t = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (t.length < 2) return { ok: false, value: t, error: 'Two characters minimum.' };
+  if (!/^[A-Z]/.test(t)) return { ok: false, value: t, error: 'Must start with a letter.' };
+  if (t !== currentTicker && taken.has(t)) return { ok: false, value: t, error: `${t} is already on the board.` };
+  return { ok: true, value: t, error: null };
+}
+
+export function validateName(raw) {
+  const n = String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 30);
+  if (n.length < 2) return { ok: false, value: n, error: 'A little longer, please.' };
+  return { ok: true, value: n, error: null };
 }
 
 /* ─── underwriters ─────────────────────────────────────────── */
@@ -201,59 +59,157 @@ export const UNDERWRITERS = [
 ];
 
 /* ─── disclosure flags ─────────────────────────────────────────
-   `w` is the weight of the flag appearing; `q` is how much it
-   correlates with true quality (positive) or fraud (negative).
-   `hidden: true` flags only ever surface through an audit.
+   `q` correlates the flag with genuine business quality, `f` with
+   aggressive accounting. The emphasis is on what kind of company
+   this is, not on catching liars.
    ────────────────────────────────────────────────────────────── */
 export const FLAGS = [
-  // visible — positive
-  { id: 'profitable',  text: 'Profitable',              tone: 'pos', w: 1.0, q: 0.55, f: -0.25 },
-  { id: 'founderled',  text: 'Founder-led',             tone: 'pos', w: 0.9, q: 0.18, f: 0 },
-  { id: 'moat',        text: 'Defensible moat',         tone: 'pos', w: 0.7, q: 0.42, f: -0.1 },
-  { id: 'backlog',     text: 'Contracted backlog',      tone: 'pos', w: 0.7, q: 0.38, f: -0.18 },
-  { id: 'anchor',      text: 'Anchor investors',        tone: 'pos', w: 0.9, q: 0.32, f: -0.12 },
-  { id: 'lockup',      text: 'Long lock-up',            tone: 'pos', w: 0.8, q: 0.24, f: -0.2 },
-  { id: 'divid',       text: 'Dividend at listing',     tone: 'pos', w: 0.4, q: 0.34, f: -0.22 },
+  // positive
+  { id: 'profitable', text: 'Profitable',            tone: 'pos', w: 1.0, q: .55, f: -.20 },
+  { id: 'recurring',  text: 'Recurring revenue',     tone: 'pos', w: .85, q: .46, f: -.12 },
+  { id: 'moat',       text: 'Defensible moat',       tone: 'pos', w: .75, q: .48, f: -.10 },
+  { id: 'backlog',    text: 'Contracted backlog',    tone: 'pos', w: .75, q: .40, f: -.14 },
+  { id: 'leader',     text: 'Category leader',       tone: 'pos', w: .6,  q: .44, f: -.08 },
+  { id: 'netcash',    text: 'Net cash',              tone: 'pos', w: .7,  q: .38, f: -.18 },
+  { id: 'anchor',     text: 'Anchor investors',      tone: 'pos', w: .9,  q: .30, f: -.10 },
+  { id: 'lockup',     text: 'Long lock-up',          tone: 'pos', w: .8,  q: .24, f: -.14 },
+  { id: 'founderled', text: 'Founder-led',           tone: 'pos', w: .9,  q: .18, f: 0 },
+  { id: 'divid',      text: 'Dividend at listing',   tone: 'pos', w: .4,  q: .34, f: -.16 },
 
-  // visible — negative
-  { id: 'burn',        text: 'Heavy cash burn',         tone: 'neg', w: 1.0, q: -0.42, f: 0.1 },
-  { id: 'dual',        text: 'Dual-class shares',       tone: 'neg', w: 0.8, q: -0.14, f: 0.18 },
-  { id: 'related',     text: 'Related-party deals',     tone: 'neg', w: 0.7, q: -0.3, f: 0.45 },
-  { id: 'concen',      text: 'Customer concentration',  tone: 'neg', w: 0.9, q: -0.28, f: 0.12 },
-  { id: 'litig',      text: 'Pending litigation',      tone: 'neg', w: 0.7, q: -0.24, f: 0.28 },
-  { id: 'auditchg',    text: 'Auditor changed twice',   tone: 'neg', w: 0.5, q: -0.3, f: 0.55 },
-  { id: 'restate',     text: 'Restated accounts',       tone: 'neg', w: 0.45, q: -0.34, f: 0.6 },
-  { id: 'insider',     text: 'Founders selling down',   tone: 'neg', w: 0.7, q: -0.26, f: 0.3 },
-  { id: 'cyclical',    text: 'Peak-cycle earnings',     tone: 'neg', w: 0.6, q: -0.2, f: 0.05 },
+  // negative
+  { id: 'burn',       text: 'Heavy cash burn',       tone: 'neg', w: 1.0, q: -.44, f: .06 },
+  { id: 'concen',     text: 'Customer concentration',tone: 'neg', w: .9,  q: -.30, f: .08 },
+  { id: 'capex',      text: 'Capex heavy',           tone: 'neg', w: .8,  q: -.24, f: .04 },
+  { id: 'cyclical',   text: 'Peak-cycle earnings',   tone: 'neg', w: .7,  q: -.26, f: .06 },
+  { id: 'unproven',   text: 'Unproven at scale',     tone: 'neg', w: .85, q: -.34, f: .10 },
+  { id: 'margin',     text: 'Margin pressure',       tone: 'neg', w: .7,  q: -.30, f: .06 },
+  { id: 'keyperson',  text: 'Key-person risk',       tone: 'neg', w: .6,  q: -.20, f: .06 },
+  { id: 'regexp',     text: 'Regulatory exposure',   tone: 'neg', w: .65, q: -.18, f: .10 },
+  { id: 'dual',       text: 'Dual-class shares',     tone: 'neg', w: .7,  q: -.12, f: .14 },
+  { id: 'thinfloat',  text: 'Thin free float',       tone: 'neg', w: .7,  q: -.16, f: .10 },
+  { id: 'related',    text: 'Related-party deals',   tone: 'neg', w: .45, q: -.26, f: .34 },
 
-  // visible — neutral / ambiguous
-  { id: 'hot',         text: 'Heavily oversubscribed',  tone: 'neu', w: 0.9, q: 0.05, f: 0.1 },
-  { id: 'retail',      text: 'Retail frenzy',           tone: 'neu', w: 0.7, q: -0.05, f: 0.14 },
-  { id: 'pe',          text: 'PE sponsor exit',         tone: 'neu', w: 0.8, q: -0.1, f: 0.12 },
-  { id: 'spin',        text: 'Corporate spin-off',      tone: 'neu', w: 0.6, q: 0.12, f: -0.05 },
-  { id: 'foreign',     text: 'Foreign domicile',        tone: 'neu', w: 0.6, q: -0.06, f: 0.2 },
+  // neutral / ambiguous
+  { id: 'hot',        text: 'Heavily oversubscribed',tone: 'neu', w: .9,  q: .04, f: .08 },
+  { id: 'retail',     text: 'Retail interest',       tone: 'neu', w: .7,  q: -.04, f: .10 },
+  { id: 'pe',         text: 'PE sponsor exit',       tone: 'neu', w: .8,  q: -.08, f: .10 },
+  { id: 'spin',       text: 'Corporate spin-off',    tone: 'neu', w: .6,  q: .12, f: -.04 },
+  { id: 'foreign',    text: 'Foreign domicile',      tone: 'neu', w: .55, q: -.04, f: .12 },
+  { id: 'cornerstone',text: 'Cornerstone investor',  tone: 'neu', w: .6,  q: .16, f: -.06 },
 
-  // audit-only
-  { id: 'circular',    text: 'Circular revenue found',  tone: 'neg', w: 0.5, q: -0.5, f: 0.9,  hidden: true },
-  { id: 'ghost',       text: 'Unverifiable customers',  tone: 'neg', w: 0.5, q: -0.45, f: 0.85, hidden: true },
-  { id: 'offbal',      text: 'Off-balance-sheet debt',  tone: 'neg', w: 0.5, q: -0.4, f: 0.7,  hidden: true },
-  { id: 'sanction',    text: 'Sanctioned counterparty', tone: 'neg', w: 0.35, q: -0.35, f: 0.75, hidden: true },
-  { id: 'cleanbooks',  text: 'Books verified clean',    tone: 'pos', w: 0.6, q: 0.4, f: -0.8,  hidden: true },
-  { id: 'undersold',   text: 'Priced below fair value', tone: 'pos', w: 0.5, q: 0.5, f: -0.3,  hidden: true },
+  // audit-only — mostly genuinely useful intelligence
+  { id: 'undersold',  text: 'Priced below fair value', tone: 'pos', w: .6, q: .50, f: -.24, hidden: true },
+  { id: 'solidbooks', text: 'Accounts verified clean', tone: 'pos', w: .6, q: .38, f: -.70, hidden: true },
+  { id: 'pipeline',   text: 'Undisclosed pipeline',    tone: 'pos', w: .5, q: .44, f: -.10, hidden: true },
+  { id: 'talent',     text: 'Exceptional bench',       tone: 'pos', w: .45, q: .40, f: -.08, hidden: true },
+  { id: 'churn',      text: 'Churn worse than stated', tone: 'neg', w: .5, q: -.44, f: .40, hidden: true },
+  { id: 'offbal',     text: 'Off-balance-sheet debt',  tone: 'neg', w: .45, q: -.40, f: .55, hidden: true },
+  { id: 'aggressive', text: 'Aggressive revenue rec.', tone: 'neg', w: .45, q: -.38, f: .72, hidden: true },
 ];
 
 export const FLAG_BY_ID = Object.fromEntries(FLAGS.map(f => [f.id, f]));
 
 /* ─── exchange tiers ───────────────────────────────────────── */
-/* `slots` is the hard cap on simultaneous listings at each tier. It is the
-   spine of the whole game: board space is scarce, so every approval spends
-   something you cannot get back until a company leaves. */
 export const TIERS = [
-  { name: 'Curb Market',       rep: 0,  cap: 0,      quality: 0.00, valMult: 1.00, flow: 1.00, slots: 10 },
-  { name: 'Regional Exchange', rep: 56, cap: 3.5e9,  quality: 0.08, valMult: 1.35, flow: 1.10, slots: 16 },
-  { name: 'National Exchange', rep: 68, cap: 2.4e10, quality: 0.16, valMult: 2.10, flow: 1.20, slots: 24 },
-  { name: 'Global Exchange',   rep: 79, cap: 1.4e11, quality: 0.24, valMult: 3.40, flow: 1.32, slots: 34 },
-  { name: 'Apex Bourse',       rep: 89, cap: 6.0e11, quality: 0.32, valMult: 5.20, flow: 1.45, slots: 48 },
+  { name: 'Curb Market',       rep: 0,  cap: 0,      quality: .00, valMult: 1.00, flow: 1.00, slots: 10 },
+  { name: 'Regional Exchange', rep: 52, cap: 3.0e9,  quality: .08, valMult: 1.35, flow: 1.10, slots: 16 },
+  { name: 'National Exchange', rep: 64, cap: 2.0e10, quality: .16, valMult: 2.10, flow: 1.20, slots: 24 },
+  { name: 'Global Exchange',   rep: 75, cap: 1.1e11, quality: .24, valMult: 3.40, flow: 1.32, slots: 34 },
+  { name: 'Apex Bourse',       rep: 85, cap: 4.5e11, quality: .32, valMult: 5.20, flow: 1.45, slots: 48 },
+];
+
+/* ─── exchange upgrades ────────────────────────────────────────
+   The building layer. Costs scale per level; effects are read
+   directly by the sim, so adding a tier here needs no other code.
+   ────────────────────────────────────────────────────────────── */
+export const UPGRADES = {
+  analysts: {
+    name: 'Analyst Desk', icon: '◎',
+    blurb: 'Research staff on retainer. Each level adds a due-diligence review every week.',
+    levels: 4, baseCost: 900_000, costMult: 2.6,
+    effect: (lvl) => ({ audits: lvl }),
+    detail: (lvl) => `+${lvl} review${lvl === 1 ? '' : 's'} per week`,
+  },
+  committee: {
+    name: 'Listings Committee', icon: '☰',
+    blurb: 'More people to vet filings means more companies you can carry at once.',
+    levels: 4, baseCost: 2_400_000, costMult: 2.9,
+    effect: (lvl) => ({ slots: lvl * 3 }),
+    detail: (lvl) => `+${lvl * 3} board slots`,
+  },
+  colocation: {
+    name: 'Colocation Hall', icon: '⌘',
+    blurb: 'Sell rack space beside the matching engine. Every trade you host pays a little more.',
+    levels: 5, baseCost: 1_400_000, costMult: 2.4,
+    effect: (lvl) => ({ feeMult: 1 + lvl * 0.10 }),
+    detail: (lvl) => `+${lvl * 10}% trading fee capture`,
+  },
+  marketing: {
+    name: 'Issuer Relations', icon: '✦',
+    blurb: 'Bankers who talk you up over lunch. Better companies file with you.',
+    levels: 4, baseCost: 1_100_000, costMult: 2.5,
+    effect: (lvl) => ({ quality: lvl * 0.045, flow: 1 + lvl * 0.08 }),
+    detail: (lvl) => `+${(lvl * 4.5).toFixed(0)}% applicant quality`,
+  },
+  terminal: {
+    name: 'Data Terminal', icon: '▦',
+    blurb: 'Your own market data product. Sells to everyone, and sharpens every prospectus you read.',
+    levels: 4, baseCost: 1_800_000, costMult: 2.7,
+    effect: (lvl) => ({ clarity: lvl * 0.22, income: lvl * 46_000 }),
+    detail: (lvl) => `Clearer filings · +$${(lvl * 46).toFixed(0)}K/day`,
+  },
+  surveillance: {
+    name: 'Surveillance Unit', icon: '◉',
+    blurb: 'Watches your own board. Catches trouble early and softens the damage when it lands.',
+    levels: 3, baseCost: 2_000_000, costMult: 2.8,
+    effect: (lvl) => ({ scandalCut: lvl * 0.22, repShield: lvl * 0.16 }),
+    detail: (lvl) => `−${lvl * 22}% blow-up risk · −${lvl * 16}% standing damage`,
+  },
+};
+
+export const UPGRADE_KEYS = Object.keys(UPGRADES);
+
+export function upgradeCost(key, currentLevel) {
+  const U = UPGRADES[key];
+  if (!U || currentLevel >= U.levels) return null;
+  return Math.round(U.baseCost * Math.pow(U.costMult, currentLevel) / 10000) * 10000;
+}
+
+/** Aggregate every purchased upgrade into one effect object. */
+export function upgradeEffects(levels = {}) {
+  const acc = { audits: 0, slots: 0, feeMult: 1, quality: 0, flow: 1, clarity: 0, income: 0, scandalCut: 0, repShield: 0 };
+  for (const key of UPGRADE_KEYS) {
+    const lvl = levels[key] | 0;
+    if (lvl <= 0) continue;
+    const e = UPGRADES[key].effect(lvl);
+    for (const [k, v] of Object.entries(e)) {
+      if (k === 'feeMult' || k === 'flow') acc[k] *= v;
+      else acc[k] += v;
+    }
+  }
+  return acc;
+}
+
+/* ─── milestones ───────────────────────────────────────────────
+   Celebrations, not objectives. Each fires once per session.
+   ────────────────────────────────────────────────────────────── */
+export const MILESTONES = [
+  { id: 'first',     test: (s) => s.stats.accepted >= 1,        title: 'First Listing',        body: 'Something trades here now. That is the hard part done.' },
+  { id: 'named',     test: (s) => s.stats.named >= 1,           title: 'Christened',           body: 'You put your own name on a company. It is on the tape forever.' },
+  { id: 'five',      test: (s) => s.liveCount >= 5,             title: 'A Real Board',         body: 'Five companies. Enough that the tape has something to say.' },
+  { id: 'cap1b',     test: (s) => s.mcap >= 1e9,                title: 'One Billion',          body: 'Your floor is worth a billion. Somebody will write about this.' },
+  { id: 'full',      test: (s) => s.liveCount >= s.slots,       title: 'Full House',           body: 'Every slot taken. From here, quality is the only way up.' },
+  { id: 'sector5',   test: (s) => s.sectorCount >= 5,           title: 'Diversified',          body: 'Five sectors represented. One bad industry can no longer sink you.' },
+  { id: 'sector9',   test: (s) => s.sectorCount >= 9,           title: 'The Whole Economy',    body: 'Nine sectors on one board. This is what a real exchange looks like.' },
+  { id: 'ten',       test: (s) => s.stats.accepted >= 10,       title: 'Ten Listed',           body: 'Ten companies admitted. The filings are stacking up.' },
+  { id: 'cap10b',    test: (s) => s.mcap >= 1e10,               title: 'Ten Billion',          body: 'Institutional money has to pay attention at this size.' },
+  { id: 'cap100b',   test: (s) => s.mcap >= 1e11,               title: 'One Hundred Billion',  body: 'You are now market infrastructure. Nations care what you do.' },
+  { id: 'cap1t',     test: (s) => s.mcap >= 1e12,               title: 'A Trillion',           body: 'There are only a handful of these in the world. One is yours.' },
+  { id: 'rep80',     test: (s) => s.reputation >= 80,           title: 'Impeccable',           body: 'Standing of eighty. Founders now call you before their bankers.' },
+  { id: 'ten x',     test: (s) => s.bestMultiple >= 10,         title: 'A Ten-Bagger',         body: 'One of your listings is up ten times its issue price.' },
+  { id: 'upgrade1',  test: (s) => s.upgradeCount >= 1,          title: 'Building Out',         body: 'You spent capital on the exchange itself. That compounds.' },
+  { id: 'upgrade6',  test: (s) => s.upgradeCount >= 6,          title: 'Institution',          body: 'Six upgrades in. This floor runs itself rather well now.' },
+  { id: 'year',      test: (s) => s.week >= 52,                 title: 'A Full Year',          body: 'Fifty-two weeks of trading. You built something that lasted.' },
 ];
 
 /* ─── exchange name pool ───────────────────────────────────── */
@@ -266,20 +222,19 @@ export const EXCHANGE_NAMES = [
 
 /* ─── market regimes ───────────────────────────────────────── */
 export const REGIMES = {
-  euphoric: { label: 'Euphoric',   drift:  0.0070, vol: 1.15, flow: 1.30, valMult: 1.28, tone: 'up' },
-  bull:     { label: 'Bull',       drift:  0.0034, vol: 0.92, flow: 1.14, valMult: 1.12, tone: 'up' },
-  steady:   { label: 'Steady',     drift:  0.0009, vol: 0.85, flow: 1.00, valMult: 1.00, tone: 'neu' },
-  jittery:  { label: 'Jittery',    drift: -0.0008, vol: 1.35, flow: 0.92, valMult: 0.94, tone: 'neu' },
-  bear:     { label: 'Bear',       drift: -0.0042, vol: 1.25, flow: 0.78, valMult: 0.82, tone: 'dn' },
-  panic:    { label: 'Panic',      drift: -0.0120, vol: 1.90, flow: 0.55, valMult: 0.66, tone: 'dn' },
+  euphoric: { label: 'Euphoric', drift:  .0070, vol: 1.15, flow: 1.30, valMult: 1.28, tone: 'up' },
+  bull:     { label: 'Bull',     drift:  .0036, vol:  .92, flow: 1.14, valMult: 1.12, tone: 'up' },
+  steady:   { label: 'Steady',   drift:  .0014, vol:  .85, flow: 1.00, valMult: 1.00, tone: 'neu' },
+  jittery:  { label: 'Jittery',  drift: -.0004, vol: 1.30, flow:  .94, valMult:  .95, tone: 'neu' },
+  bear:     { label: 'Bear',     drift: -.0034, vol: 1.22, flow:  .82, valMult:  .85, tone: 'dn' },
+  panic:    { label: 'Panic',    drift: -.0098, vol: 1.80, flow:  .60, valMult:  .70, tone: 'dn' },
 };
 
-/** Regime transition matrix (row = current, weights over next). */
 export const REGIME_FLOW = {
-  euphoric: [['euphoric', 40], ['bull', 34], ['jittery', 18], ['panic', 8]],
-  bull:     [['bull', 48], ['euphoric', 16], ['steady', 26], ['jittery', 10]],
-  steady:   [['steady', 46], ['bull', 22], ['jittery', 22], ['bear', 10]],
-  jittery:  [['jittery', 36], ['steady', 26], ['bear', 24], ['bull', 14]],
-  bear:     [['bear', 42], ['jittery', 28], ['panic', 12], ['steady', 18]],
-  panic:    [['panic', 26], ['bear', 40], ['jittery', 26], ['steady', 8]],
+  euphoric: [['euphoric', 38], ['bull', 36], ['jittery', 18], ['panic', 8]],
+  bull:     [['bull', 48], ['euphoric', 16], ['steady', 28], ['jittery', 8]],
+  steady:   [['steady', 48], ['bull', 24], ['jittery', 20], ['bear', 8]],
+  jittery:  [['jittery', 34], ['steady', 30], ['bear', 20], ['bull', 16]],
+  bear:     [['bear', 38], ['jittery', 30], ['panic', 10], ['steady', 22]],
+  panic:    [['panic', 22], ['bear', 40], ['jittery', 28], ['steady', 10]],
 };

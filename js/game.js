@@ -7,9 +7,15 @@ import {
 } from './util.js';
 import {
   DAYS_PER_WEEK, prefs, liveListings, marketCap, dayOfWeek,
-  saveGame, recordSession, clearSave, slots, slotsFree, canAccept,
+  saveGame, recordSession, clearSave, slots, slotsFree, canAccept, auditsMax,
+  sectorSpread, applyRep,
 } from './state.js';
-import { TIERS, REGIMES, SECTORS } from './data.js';
+import {
+  TIERS, REGIMES, SECTORS, SECTOR_KEYS, UPGRADES, UPGRADE_KEYS,
+  upgradeCost, validateName, validateTicker, MILESTONES,
+} from './data.js';
+import { drawPriceChart, drawIndexChart, drawSectorBars } from './charts.js';
+import { burst, cannons, sparkle } from './celebrate.js';
 import {
   advanceDay, acceptApplicant, rejectApplicant, refillQueue,
   forceDelist, forceDelistCost,
@@ -17,7 +23,7 @@ import {
 import { runAudit } from './company.js';
 import { createCard } from './card.js';
 import {
-  showScreen, openSheet, closeSheet, toast, modal, makeTape,
+  showScreen, openSheet, closeSheet, toast, modal, makeTape, namingSheet,
   sparkline, bumpStat, showDelta, flash, shakeScreen, isModalOpen,
 } from './ui.js';
 import { sfx } from './audio.js';
@@ -251,9 +257,12 @@ async function resolve(kind) {
   let listResult = null;
 
   if (kind === 'accept') {
+    // Name it before it prices, so the debut prints under your chosen ticker.
+    await offerNaming(co);
     listResult = acceptApplicant(S, co, R);
     sfx.cash(); haptic.success();
     const p = listResult.pop;
+    if (p > 0.05) sparkle(0.5, 0.55, 'green');
     toast(
       `${co.ticker} lists · ${money(listResult.fee)} fee · ${pct(p, 0)} debut`,
       p > 0.05 ? 'good' : p < -0.05 ? 'bad' : 'gold'
@@ -290,6 +299,28 @@ async function resolve(kind) {
   busy = false;
 
   if (S.over) endGame();
+}
+
+/**
+ * Give the player the chance to rename an admitted company.
+ * Skipped entirely if they've turned it off in settings.
+ */
+async function offerNaming(co) {
+  if (!prefs.naming) return;
+  const result = await namingSheet({
+    company: co,
+    taken: S.takenTickers,
+    validateName, validateTicker, chipStyle,
+  });
+  if (!result) return;
+  if (result.ticker !== co.ticker) {
+    S.takenTickers.delete(co.ticker);
+    S.takenTickers.add(result.ticker);
+  }
+  co.name = result.name;
+  co.ticker = result.ticker;
+  co.renamed = true;
+  S.stats.named++;
 }
 
 /* ═══ report presentation ═════════════════════════════════════ */
@@ -354,9 +385,32 @@ async function presentReport(rep) {
     toast(`Tape turns ${r.label.toLowerCase()}`, r.tone === 'up' ? 'good' : r.tone === 'dn' ? 'bad' : 'neu');
   }
 
+  /* rescue / probation — setbacks, presented as such */
+  if (rep.rescue) {
+    sfx.alarm(); haptic.warn(); flash('rgba(232,187,98,.4)');
+    await modal({
+      tone: 'bad', kicker: 'Emergency financing', title: rep.rescue.title,
+      body: rep.rescue.body,
+      stats: [
+        ['Facility drawn', money(rep.rescue.facility)],
+        ['Standing', '−' + rep.rescue.repCost.toFixed(1)],
+        ['Times rescued', String(rep.rescue.count)],
+      ],
+      actions: [{ label: 'Get back to work', kind: 'primary', value: 'ok' }],
+    });
+  }
+  if (rep.probation) {
+    sfx.alarm(); haptic.warn();
+    await modal({
+      tone: 'bad', kicker: 'Regulator', title: rep.probation.title, body: rep.probation.body,
+      actions: [{ label: 'Understood', kind: 'primary', value: 'ok' }],
+    });
+  }
+
   if (rep.quarterClose) await presentQuarter(rep.quarterClose);
   if (rep.weekClose) await presentWeek(rep.weekClose, rep);
   if (rep.tierChange) await presentTier(rep.tierChange);
+  for (const m of rep.milestones || []) await presentMilestone(m);
 
   syncHud();
   tape.update(tapeItems());
@@ -374,7 +428,7 @@ async function presentWeek(wk, rep) {
   if (wk.worstMover && wk.worstMover.ticker !== wk.bestMover?.ticker) {
     ledger.push({ label: `Worst — ${wk.worstMover.ticker}`, value: pct(wk.worstMover.ret, 1), tone: wk.worstMover.ret >= 0 ? 'up' : 'dn' });
   }
-  ledger.push({ label: 'Due diligence restored', value: `${S.auditsMax} reviews`, big: true, tone: 'up' });
+  ledger.push({ label: 'Due diligence restored', value: `${auditsMax(S)} reviews`, big: true, tone: 'up' });
 
   await modal({
     tone: 'neu', kicker: `Week ${wk.week} · settlement`,
@@ -401,10 +455,21 @@ async function presentQuarter(q) {
   });
 }
 
+async function presentMilestone(M) {
+  sfx.tier(); haptic.success();
+  cannons('mixed');
+  await modal({
+    tone: 'good', kicker: 'Milestone', title: M.title, titleClass: 'over-title',
+    body: M.body,
+    actions: [{ label: 'Onwards', kind: 'primary', value: 'ok' }],
+  });
+}
+
 async function presentTier(tc) {
   const T = TIERS[tc.to];
   if (tc.promoted) {
     sfx.tier(); haptic.success(); flash('rgba(232,187,98,.45)'); bg.shock(1);
+    cannons('gold');
     await modal({
       tone: 'good', kicker: 'Promotion',
       title: `You are now a<br/>${T.name}`,
@@ -497,23 +562,29 @@ export function renderBoard() {
   sorted.forEach((l, i) => {
     const ch = l.price / l.ipoPrice - 1;
     const dead = l.status !== 'live';
+    // Flash the row in the direction it moved on the last session.
+    const moved = !dead && l.prevPrice
+      ? (l.price > l.prevPrice * 1.004 ? ' moved-up' : l.price < l.prevPrice * 0.996 ? ' moved-dn' : '')
+      : '';
     const row = el('div', {
-      class: 'listing' + (dead ? ' dead' : ''),
+      class: 'listing' + (dead ? ' dead' : '') + moved,
       style: { '--d': `${Math.min(i, 14) * 34}ms` },
     },
       el('div', { class: 'lt', style: chipStyle(l.ticker) + ';', text: l.ticker }),
       el('div', { class: 'lmid' },
         el('div', { class: 'ln', text: l.name }),
-        el('div', { class: 'ls', text: dead ? (l.note || l.status) : `${l.sectorLabel} · ${money(l.price * l.shares)}` })),
+        el('div', { class: 'ls', text: dead ? (l.note || l.status) : `${l.nicheLabel || l.sectorLabel} · ${money(l.price * l.shares)}` })),
       sparkline(l.history, { animate: i < 8 }),
       el('div', { class: 'lright' },
         el('div', { class: 'lp', text: price(l.price) }),
         el('div', { class: 'lc ' + (ch >= 0 ? 'up' : 'dn'), text: pct(ch, 1) })),
     );
-    if (!dead) {
-      row.classList.add('tappable');
-      row.addEventListener('click', () => openListing(l));
-    }
+    row.classList.add('tappable');
+    row.addEventListener('click', () => {
+      sfx.tap(); haptic.light();
+      renderCompany(l);
+      openSheet('company');
+    });
     list.append(row);
   });
 
@@ -524,39 +595,255 @@ export function renderBoard() {
   }
 }
 
-/** Detail sheet for one listing, with the option to throw it off the board. */
-async function openListing(l) {
-  const ch = l.price / l.ipoPrice - 1;
-  const cost = forceDelistCost(S, l);
-  const age = S.day - l.listedDay;
+/* ═══ build sheet ═════════════════════════════════════════════ */
+export function renderUpgrades() {
+  const doc = $('#upgrades-doc');
+  $('#upg-capital').textContent = money(S.capital);
+  doc.innerHTML = '';
 
-  const choice = await modal({
-    tone: ch >= 0 ? 'good' : 'bad',
-    kicker: `${l.ticker} · ${l.sectorLabel}`,
-    title: l.name,
-    body: `Listed on day ${l.listedDay}, ${age} session${age === 1 ? '' : 's'} ago at `
-        + `<em>$${l.ipoPrice.toFixed(2)}</em>. ${l.scandal ? 'Currently under a cloud. ' : ''}`
-        + `Removing it frees a slot, costs you standing, and is entirely your decision.`,
-    stats: [
-      ['Price', price(l.price)],
-      ['Versus issue', pct(ch, 1)],
-      ['Market cap', money(l.price * l.shares)],
-      ['Peak / trough', `${price(l.peak)} / ${price(l.trough)}`],
-    ],
-    actions: [
-      { label: 'Leave it listed', kind: 'primary', value: 'keep' },
-      { label: 'Force delisting', meta: `−${cost.rep.toFixed(1)} standing · ${money(cost.cash)}`, kind: 'danger', value: 'delist' },
-    ],
+  doc.append(el('p', { class: 'upg-lede', text:
+    'An exchange is infrastructure. Spend on it and every listing you take afterwards works harder.' }));
+
+  UPGRADE_KEYS.forEach((key, i) => {
+    const U = UPGRADES[key];
+    const lvl = S.upgrades[key] | 0;
+    const cost = upgradeCost(key, lvl);
+    const maxed = lvl >= U.levels;
+    const affordable = cost != null && S.capital >= cost;
+
+    const pips = el('div', { class: 'upg-pips' });
+    for (let n = 0; n < U.levels; n++) pips.append(el('i', { class: n < lvl ? 'on' : '' }));
+
+    const row = el('div', {
+      class: 'upg' + (maxed ? ' maxed' : '') + (!maxed && !affordable ? ' poor' : ''),
+      style: { '--d': `${i * 45}ms` },
+    },
+      el('div', { class: 'upg-icon', text: U.icon }),
+      el('div', { class: 'upg-mid' },
+        el('div', { class: 'upg-name' }, el('span', { text: U.name }), pips),
+        el('div', { class: 'upg-blurb', text: U.blurb }),
+        lvl > 0 ? el('div', { class: 'upg-current', text: 'Now: ' + U.detail(lvl) }) : null,
+        !maxed ? el('div', { class: 'upg-next', text: 'Next: ' + U.detail(lvl + 1) }) : null,
+      ),
+      el('button', {
+        class: 'upg-buy' + (maxed ? ' done' : ''),
+        disabled: maxed || !affordable,
+      }, maxed ? el('span', { text: 'MAX' }) : el('span', { text: money(cost) })),
+    );
+
+    if (!maxed && affordable) {
+      row.querySelector('.upg-buy').addEventListener('click', () => buyUpgrade(key));
+    }
+    doc.append(row);
   });
 
-  if (choice !== 'delist') return;
-  forceDelist(S, l);
-  sfx.loss(); haptic.warn();
-  toast(`${l.ticker} removed from the board`, 'bad');
+  const spent = S.stats.upgradeSpend;
+  doc.append(el('div', { class: 'upg-foot', text: spent
+    ? `${money(spent)} invested in this exchange so far.`
+    : 'Nothing built yet. Trading fees pay for the first one.' }));
+}
+
+async function buyUpgrade(key) {
+  const lvl = S.upgrades[key] | 0;
+  const cost = upgradeCost(key, lvl);
+  if (cost == null || S.capital < cost) return;
+
+  S.capital -= cost;
+  S.upgrades[key] = lvl + 1;
+  S.stats.upgradeSpend += cost;
+  // Buying analyst capacity should feel immediate, not next week.
+  if (key === 'analysts') S.audits += 1;
+
+  sfx.tier(); haptic.success();
+  burst({ x: 0.5, y: 0.4, count: 40, palette: 'gold', power: 0.9 });
+  toast(`${UPGRADES[key].name} → level ${lvl + 1}`, 'gold');
+
   saveGame(S, R);
+  renderUpgrades();
   syncHud();
-  tape.update(tapeItems());
-  renderBoard();
+}
+
+/* ═══ markets sheet ═══════════════════════════════════════════ */
+export function renderMarkets() {
+  const series = S.history.index || [];
+  const last = series.length ? series[series.length - 1] : 100;
+  const prev = series.length > 5 ? series[series.length - 6] : 100;
+  const chg = prev ? (last - prev) / prev : 0;
+
+  $('#index-value').textContent = last.toFixed(1);
+  const chgEl = $('#index-change');
+  chgEl.textContent = series.length > 5 ? pct(chg, 1) + ' / wk' : '—';
+  chgEl.className = 'panel-change ' + (chg > 0 ? 'up' : chg < 0 ? 'dn' : '');
+  $('#index-foot').textContent = series.length
+    ? `${series.length} sessions · peak ${Math.max(...series).toFixed(1)}`
+    : 'The index begins with your first listing.';
+
+  drawIndexChart($('#chart-index'), series, { height: 150 });
+
+  /* sector allocation */
+  const buckets = {};
+  for (const l of liveListings(S)) {
+    buckets[l.sector] ||= { key: l.sector, label: SECTORS[l.sector]?.label ?? l.sector, value: 0, n: 0 };
+    buckets[l.sector].value += l.price * l.shares;
+    buckets[l.sector].n++;
+  }
+  const rows = Object.values(buckets);
+  drawSectorBars($('#chart-sectors'), rows);
+  $('#sector-foot').textContent = rows.length
+    ? `${rows.length} sector${rows.length === 1 ? '' : 's'} represented · breadth lifts your standing`
+    : 'Nothing listed yet.';
+
+  /* sector heat */
+  const heat = $('#heat-grid');
+  heat.innerHTML = '';
+  const sorted = SECTOR_KEYS
+    .map(k => ({ k, v: S.sectorHeat[k] ?? 0 }))
+    .sort((a, b) => b.v - a.v);
+  for (const { k, v } of sorted) {
+    const hue = SECTORS[k]?.hue ?? 210;
+    const strength = clamp(Math.abs(v), 0, 1);
+    const cell = el('div', { class: 'heat-cell' },
+      el('span', { class: 'hk', text: SECTORS[k]?.short ?? k.toUpperCase() }),
+      el('span', { class: 'hv', text: v > .06 ? 'HOT' : v < -.06 ? 'COLD' : '—' }),
+    );
+    cell.style.background = v > 0
+      ? `hsla(${hue}, 65%, 50%, ${0.10 + strength * 0.34})`
+      : `rgba(90,104,138,${0.06 + strength * 0.16})`;
+    cell.style.borderColor = v > .06
+      ? `hsla(${hue}, 70%, 60%, .5)` : 'rgba(255,255,255,.07)';
+    heat.append(cell);
+  }
+
+  /* movers */
+  const movers = $('#movers-list');
+  movers.innerHTML = '';
+  const live = liveListings(S).map(l => {
+    const span = Math.min(5, l.history.length - 1);
+    const from = l.history[l.history.length - 1 - span] || l.price;
+    return { l, ret: (l.price - from) / from };
+  }).sort((a, b) => b.ret - a.ret);
+
+  if (!live.length) {
+    movers.append(el('div', { class: 'board-empty', text: 'No listings to move yet.' }));
+  } else {
+    const show = [...live.slice(0, 3), ...live.slice(-3)]
+      .filter((v, i, a) => a.indexOf(v) === i);
+    for (const { l, ret } of show) {
+      movers.append(el('div', { class: 'mover' },
+        el('div', { class: 'mv-t', style: chipStyle(l.ticker) + ';', text: l.ticker }),
+        el('div', { class: 'mv-n', text: l.name }),
+        el('div', { class: 'mv-c ' + (ret >= 0 ? 'up' : 'dn'), text: pct(ret, 1) })));
+    }
+  }
+}
+
+/* ═══ company detail ══════════════════════════════════════════ */
+let chartRange = 20;
+
+export function renderCompany(l) {
+  const doc = $('#company-doc');
+  $('#co-heading').textContent = l.ticker;
+  const ch = l.price / l.ipoPrice - 1;
+  const dead = l.status !== 'live';
+  doc.innerHTML = '';
+
+  doc.append(
+    el('div', { class: 'co-head' },
+      el('div', { class: 'co-chip', style: chipStyle(l.ticker) + ';', text: l.ticker }),
+      el('div', {},
+        el('div', { class: 'co-name', text: l.name }),
+        el('div', { class: 'co-sub', text: [l.nicheLabel, SECTORS[l.sector]?.label].filter((v, i, a) => v && a.indexOf(v) === i).join(' · ') })),
+    ),
+    el('div', { class: 'co-price' },
+      el('div', { class: 'cp-now', text: price(l.price) }),
+      el('div', { class: 'cp-chg ' + (ch >= 0 ? 'up' : 'dn'),
+        text: `${pct(ch, 1)} vs issue ${price(l.ipoPrice)}` }),
+    ),
+  );
+
+  const canvas = el('canvas', { class: 'co-chart' });
+  const ranges = el('div', { class: 'range-row' });
+  const opts = [['1W', 5], ['1M', 20], ['3M', 60], ['ALL', 'all']];
+  for (const [label, val] of opts) {
+    const b = el('button', {
+      class: 'range' + (val === chartRange ? ' on' : ''),
+      text: label,
+    });
+    b.addEventListener('click', () => {
+      chartRange = val;
+      sfx.tap(); haptic.select();
+      [...ranges.children].forEach(c => c.classList.toggle('on', c === b));
+      drawPriceChart(canvas, l, { range: val, height: 210, mode: 'candle' });
+    });
+    ranges.append(b);
+  }
+  doc.append(el('div', { class: 'panel chart-panel' }, canvas, ranges));
+  requestAnimationFrame(() => drawPriceChart(canvas, l, { range: chartRange, height: 210, mode: 'candle' }));
+
+  const rows = [
+    ['Market cap', money(l.price * l.shares)],
+    ['Shares out', l.shares > 1e6 ? (l.shares / 1e6).toFixed(1) + 'M' : num(l.shares)],
+    ['Issue price', price(l.ipoPrice)],
+    ['All-time high', price(l.peak)],
+    ['All-time low', price(l.trough)],
+    ['Listed on', `day ${l.listedDay}`],
+    ['Sessions traded', String(Math.max(0, (l.history?.length ?? 1) - 1))],
+  ];
+  if (l.renamed) rows.push(['Named by you', 'yes']);
+  if (dead) rows.push(['Status', l.note || l.status]);
+
+  const stats = el('div', { class: 'co-stats' });
+  rows.forEach(([k, v], i) => stats.append(
+    el('div', { class: 'co-stat', style: { '--d': `${i * 32}ms` } },
+      el('span', { class: 'k', text: k }), el('span', { class: 'v', text: v }))));
+  doc.append(el('div', { class: 'panel' }, stats));
+
+  if (!dead) {
+    const cost = forceDelistCost(S, l);
+    const actions = el('div', { class: 'co-actions' });
+
+    const rename = el('button', { class: 'btn btn-ghost btn-wide' },
+      el('span', { class: 'btn-label', text: 'Rename listing' }));
+    rename.addEventListener('click', async () => {
+      sfx.tap();
+      const res = await namingSheet({
+        company: l, taken: S.takenTickers, validateName, validateTicker, chipStyle,
+      });
+      if (!res) return;
+      if (res.ticker !== l.ticker) { S.takenTickers.delete(l.ticker); S.takenTickers.add(res.ticker); }
+      if (!l.renamed) S.stats.named++;
+      l.name = res.name; l.ticker = res.ticker; l.renamed = true;
+      saveGame(S, R);
+      toast(`Now trading as ${l.ticker}`, 'gold');
+      renderCompany(l); renderBoard(); tape.update(tapeItems());
+    });
+
+    const remove = el('button', { class: 'btn btn-danger btn-wide' },
+      el('span', { class: 'btn-label', text: 'Force delisting' }),
+      el('span', { class: 'btn-meta', text: `−${cost.rep.toFixed(1)} standing · ${money(cost.cash)}` }));
+    remove.addEventListener('click', async () => {
+      sfx.tap();
+      const c = await modal({
+        tone: 'bad', kicker: 'Confirm', title: `Remove ${l.ticker}?`,
+        body: `This frees a board slot immediately. ${ch >= 0
+          ? 'It is trading above issue, which makes this an expensive thing to do.'
+          : 'It is below issue, so the market will not argue much.'}`,
+        actions: [
+          { label: 'Remove it', kind: 'danger', value: 'yes' },
+          { label: 'Leave it listed', kind: 'primary', value: 'no' },
+        ],
+      });
+      if (c !== 'yes') return;
+      forceDelist(S, l);
+      sfx.loss(); haptic.warn();
+      toast(`${l.ticker} removed from the board`, 'bad');
+      saveGame(S, R); syncHud(); tape.update(tapeItems());
+      closeSheet(); renderBoard();
+    });
+
+    actions.append(rename, remove);
+    doc.append(actions);
+  }
 }
 
 /* ═══ pause sheet ═════════════════════════════════════════════ */

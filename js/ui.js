@@ -10,10 +10,17 @@ import { haptic } from './haptics.js';
 /* ═══ screens ═════════════════════════════════════════════════ */
 let current = 'boot';
 const stack = [];
+const openSheets = [];
 
 export function showScreen(id, { push = false } = {}) {
   const next = document.getElementById('screen-' + id);
   if (!next) return;
+  // A full screen change supersedes any open sheets.
+  while (openSheets.length) {
+    const sid = openSheets.pop();
+    const sn = document.getElementById('screen-' + sid);
+    if (sn) { sn.removeAttribute('data-active'); sn.style.zIndex = ''; }
+  }
   if (push && current !== id) stack.push(current);
   for (const s of $$('.screen[data-active]')) if (s !== next) s.removeAttribute('data-active');
   next.setAttribute('data-active', '');
@@ -28,21 +35,40 @@ export function popScreen() {
   showScreen(prev);
   return prev;
 }
-/** Sheets sit on top of the game screen — close without unmounting it. */
-export function closeSheet() {
-  const sheet = $(`.screen.sheet[data-active]`);
-  if (sheet) sheet.removeAttribute('data-active');
-  const back = stack.pop() || 'menu';
-  const node = document.getElementById('screen-' + back);
-  if (node) node.setAttribute('data-active', '');
-  current = back;
-}
+/* Sheets stack on top of the game screen. Tracked explicitly rather than
+   queried from the DOM — with two sheets open, a selector returns whichever
+   comes first in document order, which is not the one on top. */
+
 export function openSheet(id) {
   if (current !== id) stack.push(current);
   const node = document.getElementById('screen-' + id);
-  if (node) node.setAttribute('data-active', '');
+  if (node) {
+    node.setAttribute('data-active', '');
+    node.style.zIndex = String(10 + openSheets.length);
+    openSheets.push(id);
+  }
   current = id;
   return node;
+}
+
+export function closeSheet() {
+  const id = openSheets.pop();
+  const node = id ? document.getElementById('screen-' + id) : null;
+  if (node) { node.removeAttribute('data-active'); node.style.zIndex = ''; }
+  const back = stack.pop() || 'menu';
+  const backNode = document.getElementById('screen-' + back);
+  if (backNode) backNode.setAttribute('data-active', '');
+  current = back;
+}
+
+/** Drop every open sheet at once — used when leaving the game entirely. */
+export function closeAllSheets() {
+  while (openSheets.length) {
+    const id = openSheets.pop();
+    const node = document.getElementById('screen-' + id);
+    if (node) { node.removeAttribute('data-active'); node.style.zIndex = ''; }
+  }
+  stack.length = 0;
 }
 
 /* ═══ toasts ══════════════════════════════════════════════════ */
@@ -144,6 +170,97 @@ export function modal(cfg) {
     async function close(value) {
       if (!modalOpen) return;
       modalOpen = false;
+      scrim.classList.remove('in'); card.classList.remove('in');
+      await wait(340);
+      scrim.remove(); card.remove();
+      root.style.pointerEvents = 'none';
+      resolve(value);
+    }
+  });
+}
+
+/* ═══ naming sheet ════════════════════════════════════════════
+   Shown the moment a company is admitted: keep the filed name, or
+   put your own on the tape. Validation is live, and the ticker chip
+   previews exactly how it will look on the board.
+   ═══════════════════════════════════════════════════════════════ */
+export function namingSheet({ company, taken, validateName, validateTicker, chipStyle }) {
+  return new Promise(async (resolve) => {
+    modalOpen = true;
+    const root = document.getElementById('modal-root');
+    const scrim = el('div', { class: 'modal-scrim' });
+    const card = el('div', { class: 'modal-card naming' });
+
+    let name = company.name;
+    let ticker = company.ticker;
+
+    const chip = el('div', { class: 'name-chip', text: ticker, style: chipStyle(ticker) + ';' });
+    const nameIn = el('input', {
+      class: 'name-input', maxlength: '30', autocomplete: 'off',
+      spellcheck: 'false', value: name, 'aria-label': 'Company name',
+    });
+    const tickIn = el('input', {
+      class: 'tick-input', maxlength: '5', autocomplete: 'off', autocapitalize: 'characters',
+      spellcheck: 'false', value: ticker, 'aria-label': 'Ticker',
+    });
+    const err = el('div', { class: 'name-error' });
+    const confirm = el('button', { class: 'btn btn-primary btn-wide' },
+      el('span', { class: 'btn-label', text: 'List it' }));
+
+    function revalidate() {
+      const n = validateName(nameIn.value);
+      const t = validateTicker(tickIn.value, taken, company.ticker);
+      chip.textContent = t.value || '—';
+      if (t.value) chip.setAttribute('style', chipStyle(t.value) + ';');
+      const problem = !n.ok ? n.error : !t.ok ? t.error : null;
+      err.textContent = problem || '';
+      err.classList.toggle('show', !!problem);
+      confirm.disabled = !!problem;
+      confirm.classList.toggle('disabled', !!problem);
+      if (!problem) { name = n.value; ticker = t.value; }
+      return !problem;
+    }
+
+    nameIn.addEventListener('input', revalidate);
+    tickIn.addEventListener('input', () => {
+      const pos = tickIn.selectionStart;
+      tickIn.value = tickIn.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      tickIn.setSelectionRange(pos, pos);
+      revalidate();
+    });
+
+    card.append(
+      el('div', { class: 'modal-kicker good', text: 'Admitted to listing' }),
+      el('div', { class: 'modal-title', text: 'Name it for the tape' }),
+      el('div', { class: 'modal-body', html:
+        `It filed as <em>${company.name}</em>. You are the exchange — you decide what the world `
+        + `calls it. Keep the filing, or make it yours.` }),
+      el('div', { class: 'naming-row' }, chip,
+        el('div', { class: 'naming-fields' },
+          el('label', { class: 'mini-label', text: 'COMPANY' }), nameIn,
+          el('label', { class: 'mini-label', text: 'TICKER' }), tickIn)),
+      err,
+      el('div', { class: 'modal-actions' }, confirm,
+        el('button', { class: 'btn btn-ghost', onClick: () => { sfx.tap(); done(null); } },
+          el('span', { class: 'btn-label', text: 'Keep it as filed' }))),
+    );
+
+    confirm.addEventListener('click', () => {
+      if (!revalidate()) return;
+      sfx.cash(); haptic.success();
+      done({ name, ticker });
+    });
+
+    root.append(scrim, card);
+    root.style.pointerEvents = 'auto';
+    await nextFrame();
+    scrim.classList.add('in'); card.classList.add('in');
+    revalidate();
+
+    async function done(value) {
+      if (!modalOpen) return;
+      modalOpen = false;
+      nameIn.blur(); tickIn.blur();
       scrim.classList.remove('in'); card.classList.remove('in');
       await wait(340);
       scrim.remove(); card.remove();

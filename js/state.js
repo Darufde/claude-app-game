@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { store, clamp, makeRng } from './util.js';
-import { TIERS, SECTOR_KEYS } from './data.js';
+import { TIERS, SECTOR_KEYS, UPGRADE_KEYS, upgradeEffects } from './data.js';
 
 export const SAVE_KEY = 'parquet.save.v1';
 export const META_KEY = 'parquet.meta.v1';
@@ -12,10 +12,12 @@ export const PREF_KEY = 'parquet.prefs.v1';
 export const DAYS_PER_WEEK = 5;
 export const WEEKS_PER_QUARTER = 4;
 
+/* `permadeath: false` means insolvency and disgrace are setbacks you trade
+   your way out of, not endings. Only the hardest setting can kill you. */
 export const DIFFICULTIES = {
-  calm:   { label: 'Bull Run',     capital: 6.0e6, rep: 58, opex: 0.86, repDecay: 0.74, audits: 4 },
-  normal: { label: 'Open Outcry',  capital: 4.0e6, rep: 50, opex: 1.00, repDecay: 1.00, audits: 3 },
-  brutal: { label: 'Black Monday', capital: 3.0e6, rep: 44, opex: 1.12, repDecay: 1.26, audits: 2 },
+  calm:   { label: "Founder's Market", capital: 8.0e6, rep: 58, opex: 0.84, repDecay: 0.70, audits: 4, permadeath: false },
+  normal: { label: 'Open Outcry',      capital: 5.5e6, rep: 50, opex: 1.00, repDecay: 0.94, audits: 3, permadeath: false },
+  brutal: { label: 'Black Monday',     capital: 3.2e6, rep: 44, opex: 1.14, repDecay: 1.24, audits: 2, permadeath: true },
 };
 
 export const BALANCE = {
@@ -26,20 +28,23 @@ export const BALANCE = {
   opexPerListing:   7_000,
   auditCost:        150_000,  // floor; the real cost scales with the size of the file
   auditRate:        0.00040,  // of the ask valuation
-  delistThreshold:  0.24,     // of IPO price
+  delistThreshold:  0.30,     // of IPO price
   queueTarget:      3,
 };
 
 /* ─── prefs ────────────────────────────────────────────────── */
 export const prefs = Object.assign(
-  { sound: true, haptics: true, motion: true, confirmBig: true },
+  { sound: true, haptics: true, motion: true, naming: true },
   store.get(PREF_KEY, {})
 );
 export function savePrefs() { store.set(PREF_KEY, prefs); }
 
 /* ─── meta (records across sessions) ───────────────────────── */
 export const meta = Object.assign(
-  { bestCap: 0, bestWeeks: 0, bestTier: 0, sessions: 0, totalListed: 0, fraudsCaught: 0, bestName: '' },
+  {
+    bestCap: 0, bestWeeks: 0, bestTier: 0, sessions: 0, totalListed: 0,
+    fraudsCaught: 0, bestName: '', totalNamed: 0, milestones: [], bestIndex: 100,
+  },
   store.get(META_KEY, {})
 );
 export function saveMeta() { store.set(META_KEY, meta); }
@@ -48,7 +53,7 @@ export function saveMeta() { store.set(META_KEY, meta); }
 export function newGame({ name, difficulty = 'normal', seed }) {
   const D = DIFFICULTIES[difficulty] ?? DIFFICULTIES.normal;
   const s = {
-    version: 1,
+    version: 2,
     seed: seed ?? ((Math.random() * 4294967296) >>> 0),
     rngState: null,
     name: (name || 'MERIDIAN').toUpperCase().slice(0, 22),
@@ -69,18 +74,26 @@ export function newGame({ name, difficulty = 'normal', seed }) {
     takenTickers: [],
 
     audits: D.audits,
-    auditsMax: D.audits,
+    auditsBase: D.audits,
+    permadeath: D.permadeath,
+
+    upgrades: Object.fromEntries(UPGRADE_KEYS.map(k => [k, 0])),
+    milestones: [],       // fired milestone ids
+    bailouts: 0,          // times rescued from insolvency
+    probation: 0,         // sessions left on regulatory probation
 
     balance: { ...BALANCE, opexBase: Math.round(BALANCE.opexBase * D.opex), repDecay: D.repDecay },
 
     stats: {
-      accepted: 0, rejected: 0, delisted: 0, scandals: 0,
-      fraudsCaught: 0, fraudsListed: 0, starsMissed: 0,
-      feesListing: 0, feesTrading: 0, feesAnnual: 0, opexPaid: 0,
-      peakCapital: D.capital, peakMcap: 0, auditsRun: 0,
+      accepted: 0, rejected: 0, delisted: 0, scandals: 0, named: 0,
+      fraudsCaught: 0, fraudsListed: 0, starsMissed: 0, acquisitions: 0,
+      feesListing: 0, feesTrading: 0, feesAnnual: 0, feesData: 0, opexPaid: 0,
+      upgradeSpend: 0, peakCapital: D.capital, peakMcap: 0, auditsRun: 0,
+      bestMultiple: 1,
     },
 
-    history: { mcap: [], cap: [], rep: [] },
+    history: { mcap: [], cap: [], rep: [], index: [] },
+    indexBase: null,      // market cap at the moment the index was set to 100
     log: [],
     over: null,          // { reason, title, body } once finished
     tierIndex: 0,
@@ -110,8 +123,20 @@ export function applyRep(s, delta) {
   return delta;
 }
 
-/** How many companies this exchange may list at once. */
-export function slots(s) { return (TIERS[s.tierIndex] ?? TIERS[0]).slots; }
+/** How many companies this exchange may list at once (tier + committee). */
+export function slots(s) {
+  return (TIERS[s.tierIndex] ?? TIERS[0]).slots + (s.upgradeEffects?.slots ?? 0);
+}
+/** Weekly due-diligence allowance (difficulty + analyst desk). */
+export function auditsMax(s) {
+  return (s.auditsBase ?? 3) + (s.upgradeEffects?.audits ?? 0);
+}
+/** Distinct sectors currently represented on the board. */
+export function sectorSpread(s) {
+  const set = new Set();
+  for (const l of s.listings) if (l.status === 'live') set.add(l.sector);
+  return set;
+}
 export function slotsFree(s) { return slots(s) - liveListings(s).length; }
 export function canAccept(s) { return slotsFree(s) > 0; }
 
@@ -127,6 +152,13 @@ export function tierIndexFor(s) {
 /** Attach convenience getters used all over the sim + UI. */
 export function decorate(s) {
   Object.defineProperty(s, 'tierDef', { get: () => TIERS[s.tierIndex] ?? TIERS[0], configurable: true });
+  // Recomputed on read but cheap, and always consistent with s.upgrades.
+  Object.defineProperty(s, 'upgradeEffects', {
+    get: () => upgradeEffects(s.upgrades || {}), configurable: true,
+  });
+  if (!s.upgrades) s.upgrades = Object.fromEntries(UPGRADE_KEYS.map(k => [k, 0]));
+  if (!s.milestones) s.milestones = [];
+  if (!s.history.index) s.history.index = [];
   Object.defineProperty(s, 'takenTickers', {
     get: () => s.takenTickersSet, configurable: true,
     set: (v) => { s.takenTickersSet = v instanceof Set ? v : new Set(v); },
@@ -151,6 +183,7 @@ export function serialize(s, rng) {
   };
   delete out.takenTickersSet;
   delete out.tierDef;
+  delete out.upgradeEffects;
   return out;
 }
 
@@ -160,7 +193,7 @@ export function saveGame(s, rng) {
 
 export function loadGame() {
   const raw = store.get(SAVE_KEY, null);
-  if (!raw || raw.version !== 1 || raw.over) return null;
+  if (!raw || raw.version !== 2 || raw.over) return null;
   const s = raw;
   s.takenTickersSet = new Set(s.takenTickers || []);
   decorate(s);
@@ -170,7 +203,7 @@ export function loadGame() {
 
 export function hasSave() {
   const raw = store.get(SAVE_KEY, null);
-  return !!(raw && raw.version === 1 && !raw.over);
+  return !!(raw && raw.version === 2 && !raw.over);
 }
 
 export function clearSave() { store.del(SAVE_KEY); }
@@ -186,9 +219,12 @@ export function recordSession(s) {
   const cap = marketCap(s);
   meta.sessions++;
   meta.totalListed += s.stats.accepted;
+  meta.totalNamed += s.stats.named || 0;
   meta.fraudsCaught += s.stats.fraudsCaught;
   if (cap > meta.bestCap) { meta.bestCap = cap; meta.bestName = s.name; }
   if (s.week > meta.bestWeeks) meta.bestWeeks = s.week;
   if (s.tierIndex > meta.bestTier) meta.bestTier = s.tierIndex;
+  // Milestones are permanent across sessions — a trophy cabinet, not a score.
+  meta.milestones = [...new Set([...(meta.milestones || []), ...(s.milestones || [])])];
   saveMeta();
 }

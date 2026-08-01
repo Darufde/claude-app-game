@@ -20,6 +20,7 @@
 <link rel="stylesheet" href="css/components.css" />
 <link rel="stylesheet" href="css/menu.css" />
 <link rel="stylesheet" href="css/game.css" />
+<link rel="stylesheet" href="css/build.css" />
 </head>
 <body>
 
@@ -60,7 +61,7 @@
           <span class="rule"></span>
         </div>
         <p class="menu-tag reveal" style="--d:280ms">
-          Every listing is a bet on someone else's future.<br />Choose the ones that make you rich, not famous.
+          You decide who gets to be a stock.<br />Build a floor the whole world wants to list on.
         </p>
       </header>
 
@@ -105,19 +106,19 @@
       <div class="field-label" style="margin-top:26px">Opening conditions</div>
       <div class="diff-grid" id="diff-grid">
         <button class="diff" data-diff="calm">
-          <b>Bull Run</b>
-          <em>Forgiving market, patient regulators.</em>
-          <span class="diff-stats">Capital $6.0M &middot; Standing 60</span>
+          <b>Founder's Market</b>
+          <em>Deep pockets, patient regulators. Build at your own pace.</em>
+          <span class="diff-stats">$8.0M &middot; Standing 58 &middot; 4 reviews</span>
         </button>
         <button class="diff" data-diff="normal" data-selected>
           <b>Open Outcry</b>
-          <em>The intended experience.</em>
-          <span class="diff-stats">Capital $4.0M &middot; Standing 50</span>
+          <em>The intended experience. Setbacks, but no endings.</em>
+          <span class="diff-stats">$5.5M &middot; Standing 50 &middot; 3 reviews</span>
         </button>
         <button class="diff" data-diff="brutal">
           <b>Black Monday</b>
-          <em>Thin capital. Hostile press. No mercy.</em>
-          <span class="diff-stats">Capital $2.4M &middot; Standing 42</span>
+          <em>Thin capital, hostile press — and this one can end you.</em>
+          <span class="diff-stats">$3.2M &middot; Standing 44 &middot; 2 reviews</span>
         </button>
       </div>
 
@@ -140,6 +141,10 @@
           <span class="hud-name" id="hud-name">MERIDIAN</span>
           <span class="hud-tier" id="hud-tier">CURB MARKET</span>
         </div>
+        <button class="hud-chip" data-action="upgrades" aria-label="Build">
+          <svg viewBox="0 0 20 20" class="ic"><path d="M10 2.4l1.9 4.2 4.6.5-3.4 3.1.9 4.5L10 12.5l-4 2.2.9-4.5L3.5 7.1l4.6-.5z"/></svg>
+          <span class="hud-chip-dot" id="dot-upgrades" hidden></span>
+        </button>
         <button class="hud-chip" data-action="board" aria-label="Listings">
           <svg viewBox="0 0 20 20" class="ic"><rect x="3" y="11" width="3.4" height="6" rx="1"/><rect x="8.3" y="6" width="3.4" height="11" rx="1"/><rect x="13.6" y="3" width="3.4" height="14" rx="1"/></svg>
           <span class="hud-chip-badge" id="badge-listings">0</span>
@@ -203,10 +208,73 @@
     <div class="sheet-head">
       <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
       <h2>The Board</h2>
-      <span class="spacer"></span>
+      <button class="icon-btn text-btn" data-action="markets">Index</button>
     </div>
     <div class="board-summary" id="board-summary"></div>
     <div class="board-list" id="board-list"></div>
+  </section>
+
+  <!-- ══════════════════════════════ MARKETS ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-markets">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Markets</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="doc" id="markets-doc">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-k">EXCHANGE INDEX</div>
+            <div class="panel-v" id="index-value">100.0</div>
+          </div>
+          <div class="panel-change" id="index-change">—</div>
+        </div>
+        <canvas id="chart-index"></canvas>
+        <div class="panel-foot" id="index-foot">Rebased to 100 at your first listing.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="panel-k">MARKET CAP BY SECTOR</div></div>
+        <canvas id="chart-sectors"></canvas>
+        <div class="panel-foot" id="sector-foot"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="panel-k">SECTOR SENTIMENT</div></div>
+        <div class="heat-grid" id="heat-grid"></div>
+        <div class="panel-foot">Hot sectors bring more filings and richer valuations.</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><div class="panel-k">MOVERS THIS WEEK</div></div>
+        <div class="movers" id="movers-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ UPGRADES ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-upgrades">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Build</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="upg-cash">
+      <span>AVAILABLE CAPITAL</span>
+      <b id="upg-capital">$0</b>
+    </div>
+    <div class="doc" id="upgrades-doc"></div>
+  </section>
+
+  <!-- ══════════════════════════════ COMPANY ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-company">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-company" aria-label="Close">&#8249;</button>
+      <h2 id="co-heading">Listing</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="doc" id="company-doc"></div>
   </section>
 
   <!-- ══════════════════════════════ PAUSE ══════════════════════════════ -->

@@ -41,19 +41,46 @@ You start with cash, a middling reputation, and an empty board.
 
 | Resource | What it does |
 | --- | --- |
-| **Capital** | Listing and trading fees come in; operating costs go out every trading day. Hit zero and you're finished. |
-| **Standing** | What the market thinks of your judgement. Gates who bothers filing with you. Hit zero and the regulator closes you. |
+| **Capital** | Listing fees, trading fees and data sales come in; running costs go out every session. |
+| **Standing** | What the market thinks of your judgement. It settles at the level your board deserves, and gates who files with you. |
 | **Market cap** | Total value of everything on your board. It's the score, and it drives trading-fee income. |
 
-### Why it's hard
+### What actually decides it
 
-Every prospectus shows real numbers, and some of those numbers are lies. **Fraudulent companies
-present better than honest ones** — that's the trap. A file with spectacular growth, fat margins and
-no debt is either the best company you've ever seen or the worst thing that will ever happen to you.
+**Quality compounds.** A genuinely good business drifts upward for as long as you hold it; a merely
+adequate one goes nowhere; a weak one rots. The whole game is telling them apart before you spend a
+slot on one.
 
-Admit a fraud and it eventually detonates: a crash, a scandal, and a standing hit that scars your
-ceiling permanently. Refuse a genuinely great company and it lists on a rival floor, doubles, and
-the press asks why you passed.
+Read the prospectus properly — growth and margin matter, but so does what you're being asked to pay.
+A wonderful company at a silly price is still a bad listing. Aggressive accounting exists, but it's
+the minority case, not the point.
+
+Refuse a genuinely great company and it lists on a rival floor, doubles, and the press asks why you
+passed.
+
+### Setbacks, not endings
+
+On **Founder's Market** and **Open Outcry** you can't lose. Run out of cash and a consortium extends
+emergency credit — you keep trading, but the debt is real and interest is charged every session.
+Lose the regulator's confidence and you go on probation rather than being closed. Only
+**Black Monday** can genuinely end a run.
+
+### Name them
+
+When you admit a company you can put your own name and ticker on it. It's your exchange; the tape
+says what you decide it says. Rename anything later from its page.
+
+### Build the exchange
+
+Spend capital on the floor itself — analyst desk, listings committee, colocation hall, issuer
+relations, data terminal, surveillance unit. Six upgrade tracks, each compounding with everything
+you list afterwards. This is the difference between a curb market and an institution.
+
+### Charts
+
+Every listing has a full candlestick chart with volume, its issue-price reference line and 1W/1M/3M/
+ALL ranges. The **Markets** screen carries your exchange's own chained cap-weighted index, market cap
+by sector, live sector sentiment, and the week's movers.
 
 ### Board space is the real currency
 
@@ -61,16 +88,20 @@ Your exchange can only list so many companies at once — **10** at the bottom r
 at the top. This is the constraint everything turns on: you can't approve everything, because every
 slot spent on something mediocre is a slot you don't have when something excellent files next week.
 
-Slots free up when a company is acquired, collapses, or is poached. You can also open **The Board**,
+Slots free up when a company is taken over, collapses, or is poached. You can also open **The Board**,
 tap a listing, and force it off yourself — costly in standing, but ejecting a disaster is far
 cheaper than ejecting a winner.
+
+Takeovers are frequent enough that the board keeps churning, so you're still making real decisions
+in week forty.
 
 ### Due diligence
 
 The magnifier commissions a review of the file in front of you, billed against the size of the
 company. Three stages: **valuation desk** (what it's actually worth vs. what it's asking),
-**forensic review** (whether the books are honest), and **deep file** (disclosures that were never
-in the prospectus). You get a fixed number of reviews per week.
+**business review** (how good it really is), and **the full file** (integrity, plus disclosures that
+were never published). Reviews aren't free and aren't always worth it — that judgement is part of
+the game.
 
 ### The clock
 
@@ -81,13 +112,16 @@ they fine you.
 ### Climbing
 
 Standing plus scale promotes you through five tiers, Curb Market → Regional → National → Global →
-Apex Bourse. Each tier grants more slots, higher valuations, and better applicants. That compounding
-is how you win.
+Apex Bourse. Each tier grants more slots, richer valuations, and better applicants. A broad board
+across many sectors earns more standing than a narrow one. Sixteen milestones track the build, and
+they persist across sessions.
 
 ### Controls
 
 - Drag the prospectus, or tap the buttons underneath.
-- Chart icon (top right) opens your board; tap any listing for detail and the delist option.
+- Star icon opens **Build**; chart icon opens **The Board**.
+- Tap any listing for its full chart, history, rename and delist options.
+- "Index" inside the board opens **Markets**.
 - Keyboard: ← pass, → list, ↑ audit.
 
 ---
@@ -96,7 +130,7 @@ is how you win.
 
 ```
 index.html             markup for every screen
-css/                   base tokens · components · menu · game
+css/                   base tokens · components · menu · game · build
 js/
   app.js               bootstrap, routing, menu, setup, docs
   game.js              the core loop controller
@@ -106,6 +140,9 @@ js/
   state.js             game state, economy constants, save/load
   card.js              prospectus card + swipe physics
   ui.js                screens, modals, toasts, ticker tape, sparklines
+  industries.js        12 sectors, 57 niches — the company content
+  charts.js            canvas candlestick / index / sector charts
+  celebrate.js         particle bursts for milestones
   bg.js                animated candlestick backdrop (canvas)
   audio.js             fully synthesised SFX — no audio assets
   haptics.js           best-effort haptics, degrades to no-op
@@ -127,13 +164,20 @@ node scripts/make-icons.mjs
 
 ## Design notes
 
-- **Fraud inflates the visible prospectus.** Presented fundamentals derive from
-  `quality + fraud × 0.62`, so a pristine file is genuinely ambiguous. That ambiguity is the game.
+- **Applicants are drawn as a niche first** — a radiopharmacy shop, a self-storage REIT, a cold-chain
+  operator — and the niche drives naming, flavour, volatility and growth character. 57 of them.
+- **The quality neutral point sits above average on purpose.** Fair value compounds at
+  `(quality − 0.55) × 0.016` per session, so an adequate business goes nowhere and only genuinely
+  good ones compound. This is what makes reading the prospectus worth doing.
 - **Standing is target-seeking, not accumulated.** It converges on a level derived from how your
   listings perform, how good they actually are, how full the floor is, and how many blow-ups are on
   your record. You can't bank reputation and coast.
 - **Fair value compounds with quality.** Good companies drift up, bad ones rot, and prices
   mean-revert toward fair value. A well-chosen board grows on its own; a careless one bleeds.
-- Balance was tuned against a headless harness playing full 52-week seasons across several
-  strategies (reject-all, accept-all, coin-flip, surface-read, full-diligence, and a
-  perfect-information oracle) to confirm the skill gradient is real and monotonic.
+- **The exchange index is properly chained.** It moves by the cap-weighted return of constituents
+  listed on both the previous and current session, so admitting or losing a company never moves the
+  index by itself — only price does.
+- Balance is tuned against a headless harness playing full 52-week seasons across six strategies.
+  Current spread on Open Outcry: accept-everything reaches ~$61B, careful prospectus-reading ~$96B,
+  perfect information ~$150B. On Black Monday the gap is 4×. Nobody dies except on the hardest
+  setting.

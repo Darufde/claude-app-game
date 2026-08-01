@@ -6,13 +6,53 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { clamp, gauss, rf, ri, pick, weighted, lerp } from './util.js';
-import { REGIMES, REGIME_FLOW, SECTOR_KEYS, SECTORS, TIERS } from './data.js';
+import { REGIMES, REGIME_FLOW, SECTOR_KEYS, SECTORS, TIERS, MILESTONES } from './data.js';
 import {
   DAYS_PER_WEEK, WEEKS_PER_QUARTER, liveListings, marketCap,
-  tierIndexFor, pushLog, applyRep, canAccept, slots,
+  tierIndexFor, pushLog, applyRep, canAccept, slots, auditsMax, sectorSpread,
 } from './state.js';
 
 export { applyRep, canAccept } from './state.js';
+
+/* ═══ milestones ══════════════════════════════════════════════ */
+export function checkMilestones(s) {
+  const live = liveListings(s);
+  let bestMultiple = 1;
+  for (const l of live) bestMultiple = Math.max(bestMultiple, l.price / l.ipoPrice);
+  s.stats.bestMultiple = Math.max(s.stats.bestMultiple || 1, bestMultiple);
+
+  const view = {
+    ...s,
+    liveCount: live.length,
+    mcap: marketCap(s),
+    slots: slots(s),
+    sectorCount: sectorSpread(s).size,
+    bestMultiple,
+    upgradeCount: Object.values(s.upgrades || {}).reduce((a, b) => a + b, 0),
+  };
+
+  const fired = [];
+  for (const M of MILESTONES) {
+    if (s.milestones.includes(M.id)) continue;
+    let hit = false;
+    try { hit = M.test(view); } catch { hit = false; }
+    if (!hit) continue;
+    s.milestones.push(M.id);
+    fired.push(M);
+  }
+  return fired;
+}
+
+/* ═══ intraday shape ══════════════════════════════════════════
+   The sim only needs a close, but a chart needs a candle. Derive a
+   plausible open/high/low around the day's move so the charts have
+   something real to draw.                                          */
+function makeCandle(open, close, volatility, r) {
+  const span = Math.abs(close - open) + open * volatility * 0.011 * (0.4 + r() * 1.3);
+  const high = Math.max(open, close) + span * rf(r, 0.05, 0.55);
+  const low = Math.max(0.02, Math.min(open, close) - span * rf(r, 0.05, 0.55));
+  return { o: open, h: high, l: low, c: close };
+}
 import { generateApplicant } from './company.js';
 import { rollEvents } from './events.js';
 
@@ -38,7 +78,7 @@ export function acceptApplicant(s, co, r) {
 
   const listing = {
     id: co.id, name: co.name, ticker: co.ticker,
-    sector: co.sector, sectorLabel: co.sectorLabel,
+    sector: co.sector, sectorLabel: co.sectorLabel, nicheLabel: co.nicheLabel,
     ipoPrice: co.ipoPrice,
     price: Math.max(0.4, co.ipoPrice * (1 + pop)),
     prevPrice: co.ipoPrice,
@@ -51,6 +91,8 @@ export function acceptApplicant(s, co, r) {
     peak: co.ipoPrice * (1 + Math.max(pop, 0)),
     trough: co.ipoPrice * (1 + Math.min(pop, 0)),
     history: [co.ipoPrice],
+    candles: [makeCandle(co.ipoPrice, Math.max(0.4, co.ipoPrice * (1 + pop)), co._vol, r)],
+    volumes: [co.shares * co._liq * 9],   // debut turnover is always heavy
     scandal: false, note: null,
   };
   listing.history.push(listing.price);
@@ -137,12 +179,15 @@ export function advanceDay(s, r) {
 
   /* ── price walk ──────────────────────────────────────────── */
   let notional = 0;
+  // Index constituents: only companies that traded yesterday as well as today.
+  let indexNum = 0, indexDen = 0;
   for (const l of s.listings) {
     if (l.status !== 'live') continue;
 
-    // Fair value itself compounds with company quality — this is the engine
-    // that makes a well-chosen board grow and a careless one rot.
-    l.fairPrice *= (1 + (l._q - 0.42) * 0.0125 + regime.drift * 0.35 + gauss(r) * 0.0025);
+    // Fair value compounds with company quality, and the neutral point sits
+    // above average on purpose: a merely adequate business drifts nowhere,
+    // a good one compounds hard, a weak one rots. This is the whole game.
+    l.fairPrice *= (1 + (l._q - 0.55) * 0.016 + regime.drift * 0.35 + gauss(r) * 0.0025);
     l.fairPrice = Math.max(0.05, l.fairPrice);
 
     const gap = Math.log(l.fairPrice / l.price);
@@ -156,32 +201,46 @@ export function advanceDay(s, r) {
     l.peak = Math.max(l.peak, l.price);
     l.trough = Math.min(l.trough, l.price);
     l.history.push(l.price);
-    if (l.history.length > 90) l.history.shift();
+    (l.candles ||= []).push(makeCandle(l.prevPrice, l.price, l._vol, r));
+    if (l.history.length > 260) l.history.shift();
+    if (l.candles.length > 260) l.candles.shift();
+
+    if (s.day - l.listedDay >= 1) {
+      indexDen += l.prevPrice * l.shares;
+      indexNum += l.price * l.shares;
+    }
 
     const ret = (l.price - l.prevPrice) / l.prevPrice;
     const mcap = l.price * l.shares;
-    notional += mcap * l._liq * (1 + Math.abs(ret) * 6.5) * lerp(0.75, 1.3, regime.flow / 1.3);
+    const turnover = mcap * l._liq * (1 + Math.abs(ret) * 6.5) * lerp(0.75, 1.3, regime.flow / 1.3);
+    notional += turnover;
+    (l.volumes ||= []).push(turnover / Math.max(l.price, .01));
+    if (l.volumes.length > 260) l.volumes.shift();
 
     report.moves.push({ ticker: l.ticker, ret, price: l.price });
 
     /* ── fraud detonation ─────────────────────────────────── */
     const age = s.day - l.listedDay;
-    if (!l.scandal && age > 2 && r() < Math.pow(l._f, 2.4) * 0.030) {
-      const crash = rf(r, 0.62, 0.90);
+    const scandalOdds = Math.pow(l._f, 2.4) * 0.024 * (1 - (s.upgradeEffects.scandalCut || 0));
+    if (!l.scandal && age > 2 && r() < scandalOdds) {
+      const crash = rf(r, 0.45, 0.74);
       l.price = Math.max(0.05, l.price * (1 - crash));
-      l.fairPrice = l.price * rf(r, 0.5, 0.9);
+      l.fairPrice = l.price * rf(r, 0.55, 0.95);
       l.scandal = true;
       l.note = 'accounting scandal';
       s.stats.scandals++;
-      const hit = -(5.5 + l._f * 7.5 + (l.audited ? -1.5 : 1.5));
+      const shield = 1 - (s.upgradeEffects.repShield || 0);
+      const hit = -(3.6 + l._f * 5.4 + (l.audited ? -1.4 : 1.2)) * shield;
       report.repDelta += applyRep(s, hit);
       report.scandals.push({ ticker: l.ticker, name: l.name, crash, repHit: hit });
       pushLog(s, { kind: 'scandal', ticker: l.ticker, text: `${l.ticker} — accounting scandal` });
     }
 
     /* ── takeover (the good ending for a listing) ─────────── */
-    if (l.status === 'live' && !l.scandal && age > 8 && l._q > 0.66 &&
-        r() < 0.0011 * (1 + l._q) * (regime.flow)) {
+    // Takeovers are the good exit, and they free a slot. Frequent enough that
+    // a well-run board keeps churning and you keep getting to choose.
+    if (l.status === 'live' && !l.scandal && age > 8 && l._q > 0.62 &&
+        r() < 0.0034 * (1 + l._q) * (regime.flow)) {
       const premium = rf(r, 0.24, 0.62);
       l.price *= (1 + premium);
       l.status = 'acquired';
@@ -205,14 +264,21 @@ export function advanceDay(s, r) {
   }
 
   /* ── revenue & cost ──────────────────────────────────────── */
-  const tradingFees = Math.round(notional * s.balance.tradingFeeBps / 10000);
+  const up = s.upgradeEffects;
+  const tradingFees = Math.round(notional * s.balance.tradingFeeBps / 10000 * up.feeMult);
+  const dataFees = Math.round(up.income);
   const n = liveListings(s).length;
-  const opex = Math.round(s.balance.opexBase + s.balance.opexPerListing * n);
-  s.capital += tradingFees - opex;
+  // Rescue facilities are debt, and debt is serviced daily.
+  const interest = Math.round((s.debt || 0) * 0.0009);
+  const opex = Math.round(s.balance.opexBase + s.balance.opexPerListing * n) + interest;
+  s.capital += tradingFees + dataFees - opex;
   s.stats.feesTrading += tradingFees;
+  s.stats.feesData += dataFees;
   s.stats.opexPaid += opex;
   report.tradingFees = tradingFees;
+  report.dataFees = dataFees;
   report.opex = opex;
+  report.interest = interest;
 
   /* ── the ones that got away ──────────────────────────────── */
   if (s.ghosts?.length) {
@@ -257,9 +323,20 @@ export function advanceDay(s, r) {
     const perf = psum / wsum;
     const avgQ = qsum / wsum;
     const util = live.length / slots(s);
-    const scar = Math.min(s.stats.scandals * 5.0, 40);
+    // Reputation must see failures, not just survivors — otherwise a board that
+    // quietly buries its mistakes reads as flawless.
+    const scar = Math.min(s.stats.scandals * 3.6, 30)
+               + Math.min(s.stats.delisted * 2.0, 20);
 
-    const target = clamp(32 + clamp(perf, -1, 1.6) * 42 + (avgQ - 0.5) * 62 + util * 10 - scar, 0, 100);
+    // A broad board is a more serious exchange, and survives a bad sector.
+    const spread = sectorSpread(s).size;
+    const breadth = Math.min(spread, 10) * 1.2;
+    report.breadth = spread;
+
+    const target = clamp(
+      26 + clamp(perf, -1, 1.6) * 40 + (avgQ - 0.5) * 75 + util * 10 + breadth - scar,
+      0, 100
+    );
     let pull = clamp((target - s.reputation) * 0.030, -1.1, 1.1);
     if (pull < 0) pull *= s.balance.repDecay;
     s.reputation = clamp(s.reputation + pull, 0, 100);
@@ -281,10 +358,26 @@ export function advanceDay(s, r) {
   }
 
   /* ── calendar ────────────────────────────────────────────── */
+  /* ── exchange index ──────────────────────────────────────────
+     A chained, cap-weighted index. Each session it moves by the weighted
+     return of the constituents that were listed yesterday *and* today, so
+     admitting or losing a company never moves the index by itself — only
+     price does. That is how a real index handles changing membership.   */
+  if (indexDen > 0) {
+    const dayReturn = indexNum / indexDen - 1;
+    s.indexValue = clamp((s.indexValue ?? 100) * (1 + dayReturn), 0.1, 1e7);
+  } else if (s.indexValue == null && liveListings(s).length) {
+    s.indexValue = 100;
+  }
+  if (s.indexValue != null) {
+    s.history.index.push(Math.round(s.indexValue * 10) / 10);
+    if (s.history.index.length > 260) s.history.index.shift();
+  }
+
   s.day++;
   if ((s.day - 1) % DAYS_PER_WEEK === 0) {
     s.week++;
-    s.audits = s.auditsMax;
+    s.audits = auditsMax(s);
     report.weekClose = closeWeek(s, r, report);
     if (s.week % WEEKS_PER_QUARTER === 1 && s.week > 1) {
       report.quarterClose = closeQuarter(s, r, report);
@@ -311,25 +404,75 @@ export function advanceDay(s, r) {
   report.repDelta = s.reputation - repBefore;
   report.mcapAfter = mcapNow;
 
-  /* ── failure states ──────────────────────────────────────── */
+  /* ── setbacks ────────────────────────────────────────────────
+     On the two ordinary settings these are things you trade your way
+     out of. Only Black Monday still ends the run.                    */
   if (s.capital < 0) {
-    report.over = {
-      reason: 'insolvent', title: 'The Floor Goes Dark',
-      body: 'Operating costs outran the fee book. Clearing halted at the open, and the '
-          + 'receivers took the keys before lunch. An exchange that cannot pay its own '
-          + 'settlement staff is not an exchange.',
-    };
-  } else if (s.reputation <= 0) {
-    report.over = {
-      reason: 'discredited', title: 'Licence Revoked',
-      body: 'The regulator ran out of patience. Every listing you approved is being '
-          + 'reviewed, and none of the reviewers are on your side. Trading is suspended '
-          + 'indefinitely.',
-    };
+    if (s.permadeath) {
+      report.over = {
+        reason: 'insolvent', title: 'The Floor Goes Dark',
+        body: 'Operating costs outran the fee book. Clearing halted at the open, and the '
+            + 'receivers took the keys before lunch. An exchange that cannot pay its own '
+            + 'settlement staff is not an exchange.',
+      };
+    } else {
+      report.rescue = grantRescue(s);
+    }
   }
+  if (!report.over && s.reputation <= 0.5) {
+    if (s.permadeath) {
+      report.over = {
+        reason: 'discredited', title: 'Licence Revoked',
+        body: 'The regulator ran out of patience. Every listing you approved is being '
+            + 'reviewed, and none of the reviewers are on your side. Trading is suspended '
+            + 'indefinitely.',
+      };
+    } else if (!s.probation) {
+      s.probation = 20;
+      s.reputation = 12;
+      report.probation = {
+        title: 'Placed on probation',
+        body: 'The commission has not closed you, but it has taken an interest. You keep your '
+            + 'licence and your board. What you have lost is the benefit of the doubt — earn '
+            + 'it back with the listings you approve from here.',
+      };
+      pushLog(s, { kind: 'probation', text: 'Exchange placed on regulatory probation' });
+    }
+  }
+  if (s.probation > 0) s.probation--;
   if (report.over) s.over = report.over;
 
+  /* ── milestones ──────────────────────────────────────────── */
+  report.milestones = checkMilestones(s);
+
   return report;
+}
+
+/**
+ * Emergency financing. The exchange survives; the terms are unpleasant and
+ * get worse each time you need it.
+ */
+function grantRescue(s) {
+  s.bailouts++;
+  const n = s.bailouts;
+  // Always enough to reopen tomorrow, but it goes on the balance sheet and the
+  // interest is charged every session from here. Repeat borrowers feel it.
+  const facility = Math.round(Math.abs(s.capital) + 1.4e6 + marketCap(s) * 0.002);
+  const repCost = 3.2 + n * 1.4;
+  s.capital += facility;
+  s.debt = (s.debt || 0) + facility;
+  applyRep(s, -repCost);
+  pushLog(s, { kind: 'rescue', text: `Emergency facility drawn — ${n}` });
+  return {
+    facility, repCost, count: n, debt: s.debt,
+    title: n === 1 ? 'A Line of Credit' : 'The Banks Return, Reluctantly',
+    body: n === 1
+      ? 'You ran out of cash. A consortium has extended an emergency facility because a failed '
+        + 'exchange embarrasses everyone who cleared through it. You keep trading. The story '
+        + 'travels, and your standing takes the hit.'
+      : `Facility number ${n}. The terms are worse, the sums are smaller, and the phone calls `
+        + 'are shorter. Your board needs to start paying for itself.',
+  };
 }
 
 /* ═══ week close ══════════════════════════════════════════════ */

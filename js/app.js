@@ -7,7 +7,7 @@ import {
   newGame, loadGame, hasSave, clearSave, saveGame, decorate, rngFor,
   prefs, savePrefs, meta, marketCap, DIFFICULTIES, BALANCE, liveListings, recordSession,
 } from './state.js';
-import { EXCHANGE_NAMES, TIERS, SECTORS, SECTOR_KEYS } from './data.js';
+import { EXCHANGE_NAMES, TIERS, SECTORS, SECTOR_KEYS, MILESTONES, NICHES } from './data.js';
 import { makeRng } from './util.js';
 import * as bg from './bg.js';
 import { showScreen, openSheet, closeSheet, makeTape, toast, modal, isModalOpen } from './ui.js';
@@ -50,10 +50,10 @@ function enterMenu() {
 function fakeTape() {
   const r = makeRng((Math.random() * 4294967296) >>> 0);
   const out = [];
-  const keys = SECTOR_KEYS;
   for (let i = 0; i < 16; i++) {
-    const S = SECTORS[keys[i % keys.length]];
-    const head = S.heads[Math.floor(r() * S.heads.length)];
+    // Name pools now live on niches, not sectors.
+    const N = NICHES[Math.floor(r() * NICHES.length)];
+    const head = N.heads[Math.floor(r() * N.heads.length)];
     const t = head.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
     const ch = (r() - 0.46) * 0.09;
     out.push({
@@ -151,6 +151,9 @@ function route(action) {
 
     case 'pause':      game.renderPause(); openSheet('pause'); break;
     case 'board':      game.renderBoard(); openSheet('board'); break;
+    case 'markets':    game.renderMarkets(); openSheet('markets'); break;
+    case 'upgrades':   game.renderUpgrades(); openSheet('upgrades'); break;
+    case 'close-company': closeSheet(); break;
     case 'quit':       confirmQuit(); break;
 
     case 'accept':
@@ -210,63 +213,67 @@ function buildHowTo() {
   $('#howto-doc').innerHTML = `
     <h3>What you are</h3>
     <p>You run a stock exchange. You do not pick stocks — you decide <b>who gets to be a stock</b>.
-    Companies file to list on your floor. Swipe right to admit them, left to turn them away.</p>
+    Companies file to list on your floor. Swipe right to admit them, left to turn them away.
+    Everything you build from there is yours.</p>
 
     <h3>The three numbers</h3>
     <ul>
-      <li><b>Capital</b> — cash. Listing fees and trading fees come in; operating costs go out every single day. Hit zero and you are finished.</li>
-      <li><b>Standing</b> — what the market thinks of your judgement. It gates the quality of who files with you. Hit zero and the regulator closes you.</li>
-      <li><b>Market cap</b> — the total value of everything on your board. It is the score, and it drives your trading fee income.</li>
+      <li><b>Capital</b> — cash. Listing fees, trading fees and data sales come in; running costs go out every day.</li>
+      <li><b>Standing</b> — what the market thinks of your judgement. It settles at the level your board deserves, and it gates who bothers filing with you.</li>
+      <li><b>Market cap</b> — the total value of everything on your board. It is the score, and it drives your fee income.</li>
     </ul>
 
-    <h3>Why this is hard</h3>
-    <p>Every prospectus shows real numbers. Some of those numbers are lies. <b>Fraudulent companies
-    present better than honest ones</b> — that is the whole trap. A file with spectacular growth,
-    fat margins and no debt is either the best company you have ever seen or the worst thing that
-    will ever happen to you.</p>
-    <p>Admit a fraud and it will eventually detonate on your board: a crash, a scandal, and a
-    standing hit you will feel for weeks. Refuse a genuinely great company and it lists on a rival
-    floor, doubles, and the press asks why you passed.</p>
-
-    <h3>Due diligence</h3>
-    <p>The magnifier commissions a review of the file in front of you. You get a fixed number each
-    week, and each one is billed against the size of the company being reviewed — from
-    <b>${money(BALANCE.auditCost)}</b> for a small filing to several million for a giant.
-    Reviews come in three stages:</p>
-    <ul>
-      <li><b>Valuation desk</b> — what the company is actually worth against what it is asking.</li>
-      <li><b>Forensic review</b> — whether the books are honest.</li>
-      <li><b>Deep file</b> — surfaces disclosures that were never in the prospectus.</li>
-    </ul>
-    <p>Auditing a company you then admit also softens the blow if it later blows up — you did look.</p>
+    <h3>What actually decides it</h3>
+    <p>Quality compounds. A genuinely good business drifts upward for as long as you hold it; a
+    merely adequate one goes nowhere; a weak one rots. <b>The whole game is telling them apart
+    before you spend a slot.</b></p>
+    <p>Read the prospectus properly. Growth and margin matter, but so does what you are being
+    asked to pay — a wonderful company at a silly price is still a bad listing. The tags on each
+    card are real signals, and the underwriter's reputation is a signal too.</p>
 
     <h3>Board space is the real currency</h3>
-    <p>Your exchange can only list so many companies at once — <b>ten</b> at the bottom rung,
-    rising to forty-eight at the top. This is the constraint the whole game turns on. You cannot
-    simply approve everything: every slot you spend on something mediocre is a slot you do not
-    have when something excellent files next week.</p>
-    <p>Slots free up when a company is acquired, collapses, or is poached by a rival. You can also
-    open <b>The Board</b>, tap any listing, and force it off yourself — it costs standing and a
-    legal fee, but throwing out a disaster is far cheaper than throwing out a winner, and
-    sometimes it is the only way to make room.</p>
+    <p>You can only list so many companies at once — <b>ten</b> at the bottom rung, far more once
+    you have built up. Every slot spent on something mediocre is a slot you do not have when
+    something excellent files next week.</p>
+    <p>Slots free up when a company is taken over, collapses, or is poached by a rival. You can
+    also open <b>The Board</b>, tap any listing, and remove it yourself — cheap when it is a
+    disaster, expensive when it is a winner.</p>
+
+    <h3>Name them</h3>
+    <p>When you admit a company you can put your own name and ticker on it. It is your exchange;
+    the tape says what you decide it says. You can rename anything later from its page.</p>
+
+    <h3>Build the exchange</h3>
+    <p>Tap the star to spend capital on the floor itself — analysts, listing committee, colocation,
+    issuer relations, a data terminal, market surveillance. These compound with everything you do
+    afterwards, and they are the difference between a curb market and an institution.</p>
+
+    <h3>Due diligence</h3>
+    <p>The magnifier commissions a review of the file in front of you, billed against the size of
+    the company. Three stages: <b>valuation</b> (worth versus ask), <b>business review</b> (how good
+    it really is), and <b>the full file</b> (integrity, plus disclosures that were never published).
+    Reviews are not free and not always worth it — that judgement is part of the game.</p>
 
     <h3>The clock</h3>
-    <p>One decision is one trading day. Five days is a week: you settle, you get a report, your
-    reviews refresh. Four weeks is a quarter: annual fees land and the regulator samples your book.
-    If too much of your board is junk, they fine you.</p>
+    <p>One decision is one trading day. Five days is a week — settlement, a report, reviews refresh.
+    Four weeks is a quarter — annual fees land and the regulator samples your book.</p>
+
+    <h3>Setbacks, not endings</h3>
+    <p>On <b>Founder's Market</b> and <b>Open Outcry</b> you cannot lose the game. Run out of cash and
+    a consortium extends emergency credit — you keep trading, but the debt is real and the interest
+    is charged daily. Lose the regulator's confidence and you go on probation rather than being
+    closed. Only <b>Black Monday</b> can genuinely end a run.</p>
 
     <h3>Climbing</h3>
-    <p>Standing plus scale promotes your exchange through five tiers, from a <b>Curb Market</b> to an
-    <b>Apex Bourse</b>. Each tier gives you more slots, raises the valuations on your floor, and
-    improves who walks through the door. That compounding is how you win.</p>
-    <p>Standing is not a score you accumulate — it settles at the level your board deserves, based
-    on how your listings perform, how good they genuinely are, and how full the floor is. Scandals
-    leave a mark that caps how high it can ever go again.</p>
+    <p>Standing plus scale promotes you through five tiers, from a <b>Curb Market</b> to an
+    <b>Apex Bourse</b>. Each tier grants more slots, richer valuations, and better applicants.
+    A broad board across many sectors is worth more standing than a narrow one.</p>
 
     <h3>Controls</h3>
     <ul>
-      <li>Drag the card, or tap the buttons underneath it.</li>
-      <li>Tap the chart icon top-right to inspect your board.</li>
+      <li>Drag the prospectus, or tap the buttons underneath.</li>
+      <li>Chart icon opens your board; tap a listing for its full chart and history.</li>
+      <li>“Index” inside the board shows your exchange's own index, sector weights and heat.</li>
       <li>On a keyboard: ← pass, → list, ↑ audit.</li>
     </ul>`;
 }
@@ -279,11 +286,20 @@ function buildRecords() {
     ['Highest tier', TIERS[meta.bestTier]?.name ?? '—'],
     ['Longest run', meta.bestWeeks + ' weeks'],
     ['Companies listed, all time', num(meta.totalListed)],
-    ['Frauds kept off the board', num(meta.fraudsCaught)],
+    ['Companies you named', num(meta.totalNamed || 0)],
   ];
+  const got = new Set(meta.milestones || []);
+  const trophies = MILESTONES.map(m =>
+    `<div class="trophy ${got.has(m.id) ? 'got' : ''}">
+       <div class="tt">${got.has(m.id) ? m.title : '— — —'}</div>
+       <div class="td">${got.has(m.id) ? m.body : 'Not yet reached'}</div>
+     </div>`).join('');
+
   $('#records-doc').innerHTML =
     `<h3>All time</h3>` +
     rows.map(([k, v]) => `<div class="record-row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`).join('') +
+    `<h3>Milestones — ${got.size} of ${MILESTONES.length}</h3>` +
+    `<div class="trophies">${trophies}</div>` +
     `<p style="margin-top:26px">Records persist on this device only.</p>`;
 }
 
@@ -292,7 +308,8 @@ function buildSettings() {
   const rows = [
     ['sound', 'Sound', 'Synthesised market audio'],
     ['haptics', 'Haptics', 'Where the device supports it'],
-    ['motion', 'Full motion', 'Shakes, flashes and flourishes'],
+    ['motion', 'Full motion', 'Shakes, flashes and celebrations'],
+    ['naming', 'Name your listings', 'Choose a name and ticker on approval'],
   ];
   doc.innerHTML = `<h3>Preferences</h3>`;
   for (const [key, label, sub] of rows) {
