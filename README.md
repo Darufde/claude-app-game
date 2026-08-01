@@ -5,27 +5,33 @@ a stock**. Companies file to list on your floor; swipe right to admit them, left
 
 Built as an installable PWA: no build step, no dependencies, runs offline once installed.
 
+## ▶ Play
+
+**https://darufde.github.io/claude-app-game/**
+
+Open it in **Safari** on your iPhone, then **Share → Add to Home Screen** and launch from the icon.
+That gives you the full screen with no browser chrome — which is what the card layout is tuned for —
+and it keeps working offline.
+
+Deploys automatically from `main` via `.github/workflows/pages.yml`.
+
 ---
 
-## Play it on your iPhone
-
-**Option A — GitHub Pages (recommended)**
-
-1. In this repo: **Settings → Pages → Source: Deploy from a branch**, pick this branch, folder `/ (root)`.
-2. Wait for the deploy, then open the published URL in **Safari** on your iPhone.
-3. Tap the **Share** button → **Add to Home Screen**.
-4. Launch it from the home screen. It runs full-screen with no browser chrome, and works offline.
-
-**Option B — local network**
+## Running it locally
 
 ```bash
+git clone https://github.com/Darufde/claude-app-game.git
+cd claude-app-game
 npx http-server -p 8123 -c-1
 ```
 
-Then open `http://<your-computer's-LAN-IP>:8123` in Safari on the phone and Add to Home Screen.
+Open `http://localhost:8123`. Arrow keys work on desktop: **←** pass, **→** list, **↑** audit.
 
-> Add to Home Screen matters: in standalone mode you get the full screen (~100px more than Safari
-> with its chrome showing), which is what the card layout is tuned for.
+To reach it from your phone on the same wifi, swap `localhost` for your computer's LAN IP
+(`ipconfig getifaddr en0` on macOS, `hostname -I` on Linux).
+
+> Don't open `index.html` directly from the filesystem — the game uses ES modules, which browsers
+> block over `file://`. It has to be served over http.
 
 ---
 
