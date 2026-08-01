@@ -1,0 +1,172 @@
+/* ═══════════════════════════════════════════════════════════════
+   PARQUET — base: tokens, reset, screen system, backdrop
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* surface */
+  --ink-000: #04060a;
+  --ink-050: #070a11;
+  --ink-100: #0b0f18;
+  --ink-200: #111726;
+  --ink-300: #1a2233;
+  --ink-400: #263047;
+
+  /* text */
+  --fg:      #eef2fb;
+  --fg-dim:  #97a3bd;
+  --fg-mute: #5f6c8a;
+
+  /* market */
+  --up:      #2fd48a;
+  --up-glow: #2fd48a55;
+  --down:    #ff4d5e;
+  --down-glow:#ff4d5e55;
+
+  /* brand */
+  --gold:    #e8bb62;
+  --gold-hi: #ffd88f;
+  --brass:   #8d6f34;
+  --azure:   #59a8ff;
+
+  --radius:  20px;
+  --radius-s: 13px;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.35);
+  --shadow-2: 0 2px 6px rgba(0,0,0,.55), 0 24px 60px rgba(0,0,0,.55);
+
+  --ff: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, system-ui, sans-serif;
+  --ff-num: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+
+  --ease-out: cubic-bezier(.16,1,.3,1);
+  --ease-io:  cubic-bezier(.65,0,.35,1);
+  --spring:   cubic-bezier(.34,1.56,.64,1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--ink-000);
+  color: var(--fg);
+  font-family: var(--ff);
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+body { user-select: none; -webkit-user-select: none; }
+input { user-select: text; -webkit-user-select: text; }
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ─── backdrop ─────────────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  z-index: 0; opacity: .95;
+}
+#vignette {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(89,168,255,.10), transparent 60%),
+    radial-gradient(100% 60% at 50% 110%, rgba(232,187,98,.07), transparent 65%),
+    radial-gradient(140% 100% at 50% 50%, transparent 35%, rgba(0,0,0,.72) 100%);
+}
+#grain {
+  position: fixed; inset: -50%; z-index: 2; pointer-events: none;
+  opacity: .035; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainShift 700ms steps(3) infinite;
+}
+@keyframes grainShift {
+  0%   { transform: translate(0,0); }
+  33%  { transform: translate(-3%, 2%); }
+  66%  { transform: translate(2%, -3%); }
+  100% { transform: translate(0,0); }
+}
+
+/* ─── screen system ────────────────────────────────────────── */
+#app { position: fixed; inset: 0; z-index: 3; }
+
+.screen {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  padding-top: var(--safe-t);
+  padding-bottom: var(--safe-b);
+  opacity: 0; visibility: hidden;
+  transform: translate3d(0,0,0) scale(.985);
+  transition: opacity .34s var(--ease-out), transform .42s var(--ease-out), visibility .42s;
+  will-change: opacity, transform;
+}
+.screen[data-active] { opacity: 1; visibility: visible; transform: none; }
+
+/* sheets slide up from the bottom */
+.screen.sheet { transform: translate3d(0,100%,0); background: linear-gradient(180deg, var(--ink-100), var(--ink-000) 55%); }
+.screen.sheet[data-active] { transform: none; }
+.screen.sheet { transition: transform .46s var(--ease-out), opacity .3s var(--ease-out), visibility .46s; }
+
+/* ─── boot ─────────────────────────────────────────────────── */
+#screen-boot { align-items: center; justify-content: center; }
+.boot-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.boot-glyph { width: 92px; height: 92px; overflow: visible; }
+.boot-glyph polyline { fill: none; stroke-width: 4.5; stroke-linecap: round; stroke-linejoin: round; }
+.boot-glyph .bg-line { stroke: rgba(255,255,255,.07); }
+.boot-glyph .fg-line {
+  stroke: var(--gold);
+  stroke-dasharray: 190; stroke-dashoffset: 190;
+  filter: drop-shadow(0 0 10px rgba(232,187,98,.5));
+  animation: drawLine 1.1s var(--ease-out) .12s forwards;
+}
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+.boot-name {
+  font-size: 13px; letter-spacing: .58em; text-indent: .58em;
+  color: var(--fg-dim); font-weight: 600;
+  opacity: 0; animation: fadeUp .7s var(--ease-out) .75s forwards;
+}
+.boot-bar { width: 128px; height: 2px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--brass), var(--gold-hi)); animation: bootFill 1.5s var(--ease-io) .25s forwards; }
+@keyframes bootFill { to { width: 100%; } }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ─── shared reveal ────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(16px); }
+[data-active] .reveal { animation: revealIn .72s var(--ease-out) var(--d, 0ms) forwards; }
+@keyframes revealIn { to { opacity: 1; transform: none; } }
+
+/* ─── ticker tape ──────────────────────────────────────────── */
+.tape { display: inline-flex; white-space: nowrap; will-change: transform; }
+.tape-item {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 0 15px; font-family: var(--ff-num); font-size: 11.5px; letter-spacing: .02em;
+}
+.tape-item b { font-weight: 600; color: var(--fg-dim); letter-spacing: .06em; }
+.tape-item i { font-style: normal; color: var(--fg-mute); }
+.tape-item u { text-decoration: none; font-size: 10.5px; }
+.tape-item u.up { color: var(--up); }
+.tape-item u.dn { color: var(--down); }
+
+/* ─── scroll containers ────────────────────────────────────── */
+.doc, .board-list, .setup-body, .pause-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* ─── screen flash (market shock) ──────────────────────────── */
+#flash {
+  position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
+}
+#flash.fire { animation: flashHit .5s var(--ease-out); }
+@keyframes flashHit { 0% { opacity: .5; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .12s !important; }
+  #grain { animation: none; }
+}

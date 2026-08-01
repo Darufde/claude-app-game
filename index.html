@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PARQUET — Stock Exchange</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#05070c" />
+<meta name="description" content="Build the world's greatest stock exchange, one IPO at a time." />
+
+<!-- iOS standalone / home-screen app -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PARQUET" />
+<link rel="apple-touch-icon" href="icons/icon-180.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/menu.css" />
+<link rel="stylesheet" href="css/game.css" />
+</head>
+<body>
+
+<!-- Ambient animated market backdrop -->
+<canvas id="bg-canvas" aria-hidden="true"></canvas>
+<div id="vignette" aria-hidden="true"></div>
+<div id="grain" aria-hidden="true"></div>
+
+<main id="app">
+
+  <!-- ══════════════════════════════ BOOT ══════════════════════════════ -->
+  <section class="screen" id="screen-boot" data-active>
+    <div class="boot-wrap">
+      <div class="boot-mark">
+        <svg viewBox="0 0 100 100" class="boot-glyph">
+          <polyline class="bg-line" points="8,72 26,58 44,64 62,34 80,44 92,18" />
+          <polyline class="fg-line" points="8,72 26,58 44,64 62,34 80,44 92,18" />
+        </svg>
+      </div>
+      <div class="boot-name">PARQUET</div>
+      <div class="boot-bar"><i></i></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ MENU ══════════════════════════════ -->
+  <section class="screen" id="screen-menu">
+    <div class="menu-ticker" id="menu-ticker"><div class="tape" id="menu-tape"></div></div>
+
+    <div class="menu-body">
+      <header class="menu-head">
+        <div class="menu-eyebrow reveal" style="--d:0ms">EST. <span id="menu-year">1987</span> &middot; FLOOR NO. 1</div>
+        <h1 class="menu-title reveal" style="--d:70ms">
+          <span class="lt">P</span><span class="lt">A</span><span class="lt">R</span><span class="lt">Q</span><span class="lt">U</span><span class="lt">E</span><span class="lt">T</span>
+        </h1>
+        <div class="menu-sub reveal" style="--d:200ms">
+          <span class="rule"></span>
+          <span>THE EXCHANGE</span>
+          <span class="rule"></span>
+        </div>
+        <p class="menu-tag reveal" style="--d:280ms">
+          Every listing is a bet on someone else's future.<br />Choose the ones that make you rich, not famous.
+        </p>
+      </header>
+
+      <nav class="menu-actions">
+        <button class="btn btn-primary reveal" style="--d:400ms" data-action="continue" id="btn-continue" hidden>
+          <span class="btn-label">Resume Session</span>
+          <span class="btn-meta" id="continue-meta"></span>
+        </button>
+        <button class="btn btn-primary reveal" style="--d:460ms" data-action="new">
+          <span class="btn-label">Open an Exchange</span>
+          <span class="btn-meta">Begin a new floor</span>
+        </button>
+        <div class="menu-row">
+          <button class="btn btn-ghost reveal" style="--d:520ms" data-action="howto">Briefing</button>
+          <button class="btn btn-ghost reveal" style="--d:560ms" data-action="records">Records</button>
+          <button class="btn btn-ghost reveal" style="--d:600ms" data-action="settings">Settings</button>
+        </div>
+      </nav>
+
+      <footer class="menu-foot reveal" style="--d:700ms">
+        <span id="menu-best">No sessions on record</span>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ SETUP ══════════════════════════════ -->
+  <section class="screen" id="screen-setup">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="back-menu" aria-label="Back">&#8249;</button>
+      <h2>Charter</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="setup-body">
+      <p class="setup-lede">Name your exchange. Regulators are not creative, and neither is the press — pick something they can shout.</p>
+
+      <label class="field">
+        <span class="field-label">Exchange name</span>
+        <input id="input-exchange" maxlength="22" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="MERIDIAN" />
+        <button class="dice-btn" id="btn-dice" aria-label="Random name">&#9860;</button>
+      </label>
+
+      <div class="field-label" style="margin-top:26px">Opening conditions</div>
+      <div class="diff-grid" id="diff-grid">
+        <button class="diff" data-diff="calm">
+          <b>Bull Run</b>
+          <em>Forgiving market, patient regulators.</em>
+          <span class="diff-stats">Capital $6.0M &middot; Standing 60</span>
+        </button>
+        <button class="diff" data-diff="normal" data-selected>
+          <b>Open Outcry</b>
+          <em>The intended experience.</em>
+          <span class="diff-stats">Capital $4.0M &middot; Standing 50</span>
+        </button>
+        <button class="diff" data-diff="brutal">
+          <b>Black Monday</b>
+          <em>Thin capital. Hostile press. No mercy.</em>
+          <span class="diff-stats">Capital $2.4M &middot; Standing 42</span>
+        </button>
+      </div>
+
+      <button class="btn btn-primary btn-wide" id="btn-begin">
+        <span class="btn-label">Ring the Bell</span>
+        <span class="btn-meta">Open for business</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ GAME ══════════════════════════════ -->
+  <section class="screen" id="screen-game">
+
+    <div class="hud">
+      <div class="hud-top">
+        <button class="hud-chip" data-action="pause" aria-label="Menu">
+          <svg viewBox="0 0 20 20" class="ic"><rect x="3" y="4.5" width="14" height="1.8" rx=".9"/><rect x="3" y="9.1" width="14" height="1.8" rx=".9"/><rect x="3" y="13.7" width="14" height="1.8" rx=".9"/></svg>
+        </button>
+        <div class="hud-brand">
+          <span class="hud-name" id="hud-name">MERIDIAN</span>
+          <span class="hud-tier" id="hud-tier">CURB MARKET</span>
+        </div>
+        <button class="hud-chip" data-action="board" aria-label="Listings">
+          <svg viewBox="0 0 20 20" class="ic"><rect x="3" y="11" width="3.4" height="6" rx="1"/><rect x="8.3" y="6" width="3.4" height="11" rx="1"/><rect x="13.6" y="3" width="3.4" height="14" rx="1"/></svg>
+          <span class="hud-chip-badge" id="badge-listings">0</span>
+        </button>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat" id="stat-capital">
+          <span class="stat-k">CAPITAL</span>
+          <span class="stat-v" id="v-capital">$0</span>
+          <span class="stat-delta" id="d-capital"></span>
+        </div>
+        <div class="stat" id="stat-rep">
+          <span class="stat-k">STANDING</span>
+          <span class="stat-v" id="v-rep">50</span>
+          <div class="rep-bar"><i id="rep-fill"></i></div>
+        </div>
+        <div class="stat" id="stat-cap">
+          <span class="stat-k">MARKET CAP</span>
+          <span class="stat-v" id="v-mcap">$0</span>
+          <span class="stat-delta" id="d-mcap"></span>
+        </div>
+      </div>
+
+      <div class="hud-tape"><div class="tape" id="game-tape"></div></div>
+
+      <div class="hud-day">
+        <span id="v-session">WEEK 1 &middot; DAY 1</span>
+        <span class="dots" id="week-dots"></span>
+        <span id="v-queue">4 pending</span>
+      </div>
+    </div>
+
+    <div class="deck" id="deck">
+      <div class="deck-empty" id="deck-empty">
+        <div class="spin"></div>
+        <span>Waiting for the wire…</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="ctl ctl-reject" data-action="reject" aria-label="Reject listing">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <button class="ctl ctl-audit" data-action="audit" aria-label="Due diligence">
+        <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2L20 20"/></svg>
+        <span class="ctl-badge" id="audit-count">3</span>
+      </button>
+      <button class="ctl ctl-accept" data-action="accept" aria-label="Approve listing">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.6 4.6L19 7.5"/></svg>
+      </button>
+    </div>
+
+    <div class="swipe-hint" id="swipe-hint">
+      <span>&#8592; reject</span><span class="hint-mid">drag the prospectus</span><span>approve &#8594;</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ BOARD ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-board">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>The Board</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="board-summary" id="board-summary"></div>
+    <div class="board-list" id="board-list"></div>
+  </section>
+
+  <!-- ══════════════════════════════ PAUSE ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-pause">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Floor Closed</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="pause-body">
+      <div class="pause-stats" id="pause-stats"></div>
+      <button class="btn btn-primary btn-wide" data-action="close-sheet"><span class="btn-label">Back to the Floor</span></button>
+      <button class="btn btn-ghost btn-wide" data-action="howto"><span class="btn-label">Briefing</span></button>
+      <button class="btn btn-ghost btn-wide" data-action="settings"><span class="btn-label">Settings</span></button>
+      <button class="btn btn-danger btn-wide" data-action="quit"><span class="btn-label">Abandon Session</span></button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════ HOW TO ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-howto">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Briefing</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="doc" id="howto-doc"></div>
+  </section>
+
+  <!-- ══════════════════════════════ RECORDS ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-records">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Records</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="doc" id="records-doc"></div>
+  </section>
+
+  <!-- ══════════════════════════════ SETTINGS ══════════════════════════════ -->
+  <section class="screen sheet" id="screen-settings">
+    <div class="sheet-head">
+      <button class="icon-btn" data-action="close-sheet" aria-label="Close">&#8249;</button>
+      <h2>Settings</h2>
+      <span class="spacer"></span>
+    </div>
+    <div class="doc" id="settings-doc"></div>
+  </section>
+
+</main>
+
+<!-- Overlays -->
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<div id="flash" aria-hidden="true"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
